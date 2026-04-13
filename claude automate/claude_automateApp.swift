@@ -1,17 +1,76 @@
-//
-//  claude_automateApp.swift
-//  claude automate
-//
-//  Created by Steve Kurien on 3/29/26.
-//
-
 import SwiftUI
+import Supabase
 
 @main
-struct claude_automateApp: App {
+struct AutoGuardApp: App {
+    @State private var appState = AppState()
+    @State private var authState = AuthState()
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            RootView()
+                .environment(appState)
+                .environment(authState)
+                .onOpenURL { url in
+                    Task {
+                        try? await SupabaseManager.client.auth.session(from: url)
+                    }
+                }
+        }
+    }
+}
+
+struct RootView: View {
+    @Environment(AuthState.self) private var authState
+    @Environment(AppState.self) private var appState
+
+    @State private var showOnboarding: Bool? = nil
+
+    var body: some View {
+        Group {
+            if authState.isLoading || showOnboarding == nil {
+                ZStack {
+                    Color.agBackground.ignoresSafeArea()
+                    VStack(spacing: 16) {
+                        ProgressView()
+                            .controlSize(.large)
+                        Text("Loading...")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(Color.agMutedForeground)
+                    }
+                }
+            } else if showOnboarding == true {
+                OnboardingView {
+                    withAnimation {
+                        showOnboarding = false
+                        appState.hasCompletedOnboarding = true
+                    }
+                }
+            } else {
+                ContentView()
+            }
+        }
+        .onAppear {
+            // On launch: if already authenticated, configure AppState for that user
+            if let user = authState.currentUser {
+                appState.configure(for: user.id)
+                showOnboarding = !appState.hasCompletedOnboarding
+            } else {
+                showOnboarding = true
+            }
+        }
+        .onChange(of: authState.currentUser) { oldUser, newUser in
+            if let user = newUser {
+                // Login or signup — load this user's scoped data
+                appState.configure(for: user.id)
+                showOnboarding = !appState.hasCompletedOnboarding
+            } else {
+                // Logout — clear all in-memory user data
+                appState.clear()
+                withAnimation {
+                    showOnboarding = true
+                }
+            }
         }
     }
 }

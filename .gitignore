@@ -1,0 +1,16 @@
+# Xcode
+build/
+DerivedData/
+*.xcuserstate
+*.xcuserdatad
+xcuserdata/
+
+# Claude Code
+.claude/
+
+# OS
+.DS_Store
+
+# Secrets (just in case)
+*.env
+Secrets.swift
