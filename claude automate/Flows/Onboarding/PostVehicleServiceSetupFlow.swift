@@ -63,7 +63,7 @@ struct PostVehicleServiceSetupFlow: View {
                 }
                 .frame(height: 4)
 
-                Text("\(vehicle.year) \(vehicle.make) \(vehicle.model)")
+                Text("\(vehicle.year, format: .number.grouping(.never)) \(vehicle.make) \(vehicle.model)")
                     .font(.system(size: 12))
                     .foregroundStyle(Color.agMutedForeground)
             }
@@ -364,14 +364,20 @@ struct PostVehicleServiceSetupFlow: View {
 
         Task {
             do {
-                let items = try await AIMaintenanceAnalyzer.analyze(
+                let result = try await AIMaintenanceAnalyzer.analyze(
                     vehicle: vehicle,
                     answers: answers,
                     oilMileage: oilMileage,
                     brakeMileage: brakeMileage
                 )
                 await MainActor.run {
-                    appState.storeBaselineServiceLogsWithAI(entries, items: items, for: vehicle.id)
+                    appState.storeBaselineServiceLogsWithAI(
+                        entries,
+                        items: result.items,
+                        schedule: result.schedule,
+                        sources: result.sources,
+                        for: vehicle.id
+                    )
                     isAnalyzing = false
                     onFinish()
                 }

@@ -13,34 +13,31 @@ enum AIMaintenanceAnalyzer {
     // MARK: - OEM Schedule Response Models
 
     private struct OEMSource: Codable {
+        let type: String // "official" | "dealer" | "specialist" | "forum"
         let name: String
         let url: String?
-        let reliability: String
     }
 
     private struct OEMMaintenanceItem: Codable {
-        let item: String
+        let name: String
         let action: String
+        let type: String // "recurring" | "one_time" | "recurring_after_first"
         let interval_miles: Int?
         let interval_months: Int?
         let first_due_miles: Int?
         let first_due_months: Int?
         let subsequent_interval_miles: Int?
         let subsequent_interval_months: Int?
-        let severe_conditions_interval_miles: Int?
-        let severe_conditions_interval_months: Int?
+        let severe_only: Bool?
+        let severe_condition: String?
         let category: String
-        let confidence: String
-        let notes: String
-        let estimated_cost_low: Double
-        let estimated_cost_high: Double
-        let diy_difficulty: Int
+        let notes: String?
     }
 
     private struct OEMBaseInterval: Codable {
         let miles: Int?
         let months: Int?
-        let notes: String
+        let notes: String?
     }
 
     private struct OEMVehicleInfo: Codable {
@@ -48,13 +45,18 @@ enum AIMaintenanceAnalyzer {
         let make: String
         let model: String
         let trim: String?
+        let engine: String?
     }
 
+    // NOTE: Schema bumped — old cached schedules at {Documents}/oem_schedules/*.json
+    // will fail to decode (handled silently by `try?` in loadCachedSchedule) and
+    // be refetched on next analysis.
     private struct OEMScheduleResponse: Codable {
         let vehicle: OEMVehicleInfo
-        let sources_consulted: [OEMSource]
-        let base_service_interval: OEMBaseInterval
+        let sources: [OEMSource]
+        let base_interval: OEMBaseInterval
         let maintenance_items: [OEMMaintenanceItem]
+        let footnotes: [String]?
     }
 
     // MARK: - Perplexity Response (OpenAI-compatible)
@@ -116,12 +118,21 @@ enum AIMaintenanceAnalyzer {
 
     // MARK: - Public API
 
+    /// Bundled analyzer result: personalized maintenance items (status/due
+    /// math) + the raw OEM schedule in the flat-list-with-recurrence shape
+    /// that the Service Plan timeline renders from.
+    struct AnalyzerResult {
+        let items: [MaintenanceItem]
+        let schedule: [OEMScheduleItemInput]
+        let sources: [OEMScheduleSource]
+    }
+
     static func analyze(
         vehicle: Vehicle,
         answers: [String: String],
         oilMileage: String,
         brakeMileage: String
-    ) async throws -> [MaintenanceItem] {
+    ) async throws -> AnalyzerResult {
 
         // Phase 1: Get OEM schedule (from cache or Perplexity web search)
         let key = vehicleKey(for: vehicle)
@@ -137,13 +148,15 @@ enum AIMaintenanceAnalyzer {
             // Log parsed OEM items
             print("🔧 [AIAnalyzer] ═══════════ PARSED OEM ITEMS ═══════════")
             for (i, item) in oemSchedule.maintenance_items.enumerated() {
-                print("  [\(i+1)] \(item.item) | interval: \(item.interval_miles ?? 0)mi / \(item.interval_months ?? 0)mo | cat: \(item.category) | confidence: \(item.confidence) | cost: $\(item.estimated_cost_low)-$\(item.estimated_cost_high)")
+                let firstDue = item.first_due_miles ?? 0
+                let every = item.interval_miles ?? item.subsequent_interval_miles ?? 0
+                print("  [\(i+1)] \(item.name) | type: \(item.type) | first: \(firstDue)mi / \(item.first_due_months ?? 0)mo | every: \(every)mi / \(item.interval_months ?? 0)mo | cat: \(item.category) | severe_only: \(item.severe_only ?? false)")
             }
             print("🔧 [AIAnalyzer] ═══════════ END OEM ITEMS ═══════════")
         }
 
         print("🔧 [AIAnalyzer] OEM schedule has \(oemSchedule.maintenance_items.count) items")
-        print("🔧 [AIAnalyzer] Sources: \(oemSchedule.sources_consulted.map { $0.name }.joined(separator: ", "))")
+        print("🔧 [AIAnalyzer] Sources: \(oemSchedule.sources.map { $0.name }.joined(separator: ", "))")
 
         // Phase 2: Deterministic local personalization (no API call)
         print("🔧 [AIAnalyzer] Phase 2: Personalizing locally with deterministic math...")
@@ -159,7 +172,12 @@ enum AIMaintenanceAnalyzer {
         for item in items {
             print("  [\(item.status.rawValue)] \(item.name) — due: \(item.dueMileage.map { "\($0) mi" } ?? "n/a")")
         }
-        return items
+
+        let schedule = oemSchedule.maintenance_items.map(oemItemToScheduleInput)
+        let sources = oemSchedule.sources.map {
+            OEMScheduleSource(type: $0.type, name: $0.name, url: $0.url)
+        }
+        return AnalyzerResult(items: items, schedule: schedule, sources: sources)
     }
 
     // MARK: - Phase 1: OEM Schedule Research (Perplexity sonar-pro with web search)
@@ -231,12 +249,17 @@ enum AIMaintenanceAnalyzer {
         var items: [MaintenanceItem] = []
 
         for oemItem in oemSchedule.maintenance_items {
+            // Skip items that only apply under severe conditions if user isn't severe.
+            if (oemItem.severe_only ?? false) && !hasSevere {
+                continue
+            }
+
             let interval = effectiveInterval(for: oemItem, severe: hasSevere)
             guard interval > 0 else {
                 // No mileage interval — default to overdue with generic description
                 items.append(makeItem(
                     oemItem: oemItem, vehicle: vehicle, status: .overdue, dueMileage: nil,
-                    description: "\(oemItem.item) — no mileage interval found. Recommend inspection."
+                    description: "\(oemItem.name) — no mileage interval found. Recommend inspection."
                 ))
                 continue
             }
@@ -273,7 +296,7 @@ enum AIMaintenanceAnalyzer {
             } else if let answer, answer != "unknown" {
                 // Time-based answer only — estimate status from the bucket
                 let (status, description) = statusFromTimeBucket(
-                    answer: answer, category: oemItem.category, itemName: oemItem.item,
+                    answer: answer, category: oemItem.category, itemName: oemItem.name,
                     intervalMiles: interval, intervalMonths: oemItem.interval_months
                 )
                 // Estimate next due mileage from current position
@@ -294,11 +317,11 @@ enum AIMaintenanceAnalyzer {
         return items
     }
 
-    /// Returns the effective interval in miles, using severe interval if applicable.
+    /// Returns the effective interval in miles.
+    /// New schema no longer has per-item severe intervals — `severe_only` is a binary
+    /// flag indicating an item only applies under severe conditions (handled upstream
+    /// by skipping the item entirely). The `severe` parameter is kept for API stability.
     private static func effectiveInterval(for item: OEMMaintenanceItem, severe: Bool) -> Int {
-        if severe, let severeInterval = item.severe_conditions_interval_miles {
-            return severeInterval
-        }
         return item.subsequent_interval_miles ?? item.interval_miles ?? 0
     }
 
@@ -353,18 +376,21 @@ enum AIMaintenanceAnalyzer {
         oemItem: OEMMaintenanceItem, vehicle: Vehicle,
         status: MaintenanceStatus, dueMileage: Int?, description: String
     ) -> MaintenanceItem {
+        // TODO: New Perplexity prompt no longer returns cost/DIY estimates.
+        // The Service Maintenance Timeline task will decide whether to remove these
+        // fields from MaintenanceItem or backfill them from another source.
         MaintenanceItem(
             id: UUID(),
             vehicleId: vehicle.id,
-            name: oemItem.item,
+            name: oemItem.name,
             status: status,
             dueDate: nil,
             dueMileage: dueMileage,
             description: description,
-            estimatedCostLow: oemItem.estimated_cost_low,
-            estimatedCostHigh: oemItem.estimated_cost_high,
+            estimatedCostLow: 0,
+            estimatedCostHigh: 0,
             category: "ai-\(oemItem.category)",
-            diyDifficulty: oemItem.diy_difficulty
+            diyDifficulty: 3
         )
     }
 
@@ -450,64 +476,193 @@ enum AIMaintenanceAnalyzer {
     // MARK: - User Prompts
 
     private static func buildOEMUserPrompt(vehicle: Vehicle) -> String {
+        let year = vehicle.year
+        let make = vehicle.make
+        let model = vehicle.model
+        let trim = vehicle.trim ?? ""
+        let vinLine: String = {
+            if let vin = vehicle.vin, !vin.isEmpty {
+                return "VIN: \(vin)"
+            }
+            return ""
+        }()
+
         return """
-        Research and return the complete OEM maintenance schedule for:
-        Vehicle: \(vehicle.year) \(vehicle.make) \(vehicle.model) \(vehicle.trim ?? "Base")
-        Transmission: automatic
+        Research the complete OEM maintenance schedule for:
+        Vehicle: \(year) \(make) \(model) \(trim)
+        \(vinLine)
 
-        Find the official manufacturer maintenance guide for this exact vehicle. \
-        Prioritize the warranty & maintenance guide PDF, official dealer maintenance \
-        schedule pages, and enthusiast forums that reference the actual owner's manual \
-        intervals. Cross-reference at least 2-3 sources.
+        Find the official manufacturer warranty & maintenance guide for this exact vehicle.
+        Cross-reference at least 2-3 sources. Prioritize in this order:
+        1. Official OEM owner's manual or warranty & maintenance guide PDF
+        2. Official dealer maintenance schedule pages
+        3. Specialist repair sites (e.g. Firestone, RepairPal)
+        4. Enthusiast forums that reference the actual owner's manual intervals
 
-        For each maintenance item, provide:
-        - The exact OEM interval in miles AND months/years (whichever comes first)
-        - When it FIRST comes due on a brand new vehicle (first_due_miles)
-        - The repeat interval after the first service (if different from the standard interval)
-        - A shorter interval for severe/special operating conditions if the manufacturer \
-          specifies one (severe conditions = towing, stop-and-go city driving, dusty/muddy \
-          roads, extreme temperatures)
-        - Estimated cost range (USD, typical shop price)
-        - DIY difficulty (1=no tools needed, 2=basic hand tools, 3=jack/stands needed, \
-          4=specialized tools, 5=professional equipment required)
-        - Confidence level: high if from official OEM manual/PDF, medium if from dealer \
-          sites, low if inferred
+        Use the actual OEM schedule — do NOT invent generic intervals. If sources conflict,
+        prefer the official OEM manual over dealer pages, and dealer pages over forums.
 
-        CRITICAL RULES:
-        - Use OEM intervals ONLY — do not fall back on generic/universal intervals
-        - first_due_miles means when this item first comes due on a BRAND NEW vehicle
-        - Include ALL items from the OEM schedule: oil, filters, tire rotation, brake \
-          inspection, brake fluid, transmission fluid, differential fluid, transfer case \
-          fluid, coolant, spark plugs, timing belt/chain, drive belts, cabin air filter, \
-          engine air filter, valve adjustment, wiper blades, battery inspection, suspension \
-          inspection, exhaust inspection, and any other items specific to this vehicle
-        - Do NOT omit items. If the OEM maintenance schedule lists it, include it.
-        - Populate first_due_miles and first_due_months for EVERY item.
+        IMPORTANT: Return the schedule as a FLAT LIST OF MAINTENANCE ITEMS, each with its own
+        interval data. Do NOT return milestone snapshots (e.g. "at 10,000 miles do X, Y, Z").
+        Instead, return each item ONCE with its recurrence pattern.
 
-        Return as JSON:
+        For each item, classify it as either:
+        - "recurring": repeats on a fixed cycle (e.g. oil change every 10,000 miles)
+        - "one_time": happens once at a specific mileage (e.g. PCV valve inspect at 100,000 miles)
+        - "recurring_after_first": has a different first-due mileage, then repeats on a fixed cycle
+          (e.g. coolant at 100,000 then every 50,000 after)
+
+        Rules:
+        - Include ALL items the OEM lists — oil, filters, inspections, fluid changes, belt
+          replacements, spark plugs, everything
+        - Use the exact item names from the OEM guide when possible (e.g. "Brake Linings/Drums
+          and Brake Pads/Discs" not just "Brakes")
+        - Each item needs an action: replace, inspect, clean, adjust, or perform
+        - If an item only applies under severe/special conditions (dusty roads, towing, off-road,
+          extreme temps), set "severe_only" to true and note the condition
+        - If an item only applies to certain configurations (AWD only, hybrid only, turbo only,
+          etc.), note that in the item name in parentheses
+        - Do NOT combine separate items into one (e.g. "Engine Oil" and "Oil Filter" should be
+          separate entries if the OEM lists them separately)
+        - Do NOT include cost estimates or DIY difficulty
+        - Do NOT include administrative items like "Reset Maintenance Reminder" or "Inspect Floor
+          Mat Installation"
+
+        Return ONLY valid JSON in this exact structure:
         {
-          "vehicle": { "year": number, "make": "string", "model": "string", "trim": "string", \
-        "transmission": "string", "engine": "string or null" },
-          "sources_consulted": [{ "name": "string", "url": "string", \
-        "reliability": "official|dealer|specialist|forum" }],
-          "base_service_interval": { "miles": number|null, "months": number|null, "notes": "string" },
-          "maintenance_items": [{
-            "item": "string", "action": "replace|inspect|clean|perform",
-            "interval_miles": number|null, "interval_months": number|null,
-            "first_due_miles": number|null, "first_due_months": number|null,
-            "subsequent_interval_miles": number|null, "subsequent_interval_months": number|null,
-            "severe_conditions_interval_miles": number|null, "severe_conditions_interval_months": number|null,
-            "category": "oil|tires|brakes|filters|battery|transmission|cooling|fluids|belts|ignition|suspension|general",
-            "confidence": "high|medium|low",
-            "notes": "string",
-            "estimated_cost_low": number, "estimated_cost_high": number,
-            "diy_difficulty": 1-5
-          }]
+          "vehicle": {
+            "year": \(year),
+            "make": "\(make)",
+            "model": "\(model)",
+            "trim": "\(trim)",
+            "engine": "engine type if identified, or null"
+          },
+          "sources": [
+            {
+              "type": "official",
+              "name": "2025 Jeep Wrangler 4xe Owner's Manual",
+              "url": "https://example.com/owners-manual.pdf"
+            },
+            {
+              "type": "dealer",
+              "name": "Rockland CDJR Wrangler 4xe Maintenance Schedule",
+              "url": "https://example.com/schedule"
+            }
+          ],
+          "base_interval": {
+            "miles": 10000,
+            "months": 12,
+            "notes": "e.g. Oil change when indicator activates, not to exceed 10,000 miles or 12 months"
+          },
+          "maintenance_items": [
+            {
+              "name": "Engine Oil",
+              "action": "replace",
+              "type": "recurring",
+              "interval_miles": 10000,
+              "interval_months": 12,
+              "first_due_miles": 10000,
+              "first_due_months": 12,
+              "subsequent_interval_miles": null,
+              "subsequent_interval_months": null,
+              "severe_only": false,
+              "severe_condition": null,
+              "category": "oil",
+              "notes": null
+            },
+            {
+              "name": "Cabin Air Filter",
+              "action": "replace",
+              "type": "recurring",
+              "interval_miles": 20000,
+              "interval_months": 24,
+              "first_due_miles": 20000,
+              "first_due_months": 24,
+              "subsequent_interval_miles": null,
+              "subsequent_interval_months": null,
+              "severe_only": false,
+              "severe_condition": null,
+              "category": "filters",
+              "notes": null
+            },
+            {
+              "name": "Engine Coolant",
+              "action": "replace",
+              "type": "recurring_after_first",
+              "interval_miles": null,
+              "interval_months": null,
+              "first_due_miles": 100000,
+              "first_due_months": 120,
+              "subsequent_interval_miles": 50000,
+              "subsequent_interval_months": 60,
+              "severe_only": false,
+              "severe_condition": null,
+              "category": "cooling",
+              "notes": "Initial replacement at 100,000 miles, then every 50,000 miles thereafter"
+            },
+            {
+              "name": "PCV Valve",
+              "action": "inspect and replace if necessary",
+              "type": "one_time",
+              "interval_miles": null,
+              "interval_months": null,
+              "first_due_miles": 100000,
+              "first_due_months": 120,
+              "subsequent_interval_miles": null,
+              "subsequent_interval_months": null,
+              "severe_only": false,
+              "severe_condition": null,
+              "category": "engine",
+              "notes": null
+            },
+            {
+              "name": "Engine Air Cleaner Filter",
+              "action": "inspect",
+              "type": "recurring",
+              "interval_miles": 10000,
+              "interval_months": 12,
+              "first_due_miles": 10000,
+              "first_due_months": 12,
+              "subsequent_interval_miles": null,
+              "subsequent_interval_months": null,
+              "severe_only": true,
+              "severe_condition": "dusty or off-road conditions",
+              "category": "filters",
+              "notes": "Only required under dusty or off-road driving conditions"
+            }
+          ],
+          "footnotes": [
+            "Any important OEM notes about severe duty definitions, special intervals, or vehicle-specific caveats"
+          ]
         }
+
+        List ALL sources consulted in the "sources" array, ranked by reliability
+        (official > dealer > specialist > forum). Use these exact type values:
+        "official", "dealer", "specialist", "forum".
+
+        Valid category values: oil, tires, brakes, filters, battery, transmission,
+        cooling, fluids, belts, ignition, suspension, engine, exhaust, electrical, general
+
+        Return ONLY the JSON. No markdown fences. No explanation.
         """
     }
 
     // MARK: - Errors
+
+    // MARK: - OEM → ServicePlan bridge
+
+    private static func oemItemToScheduleInput(_ item: OEMMaintenanceItem) -> OEMScheduleItemInput {
+        OEMScheduleItemInput.make(
+            name: item.name,
+            action: item.action,
+            category: item.category,
+            type: item.type,
+            intervalMiles: item.interval_miles,
+            firstDueMiles: item.first_due_miles,
+            subsequentIntervalMiles: item.subsequent_interval_miles,
+            severeOnly: item.severe_only ?? false
+        )
+    }
 
     enum AnalyzerError: LocalizedError {
         case apiError

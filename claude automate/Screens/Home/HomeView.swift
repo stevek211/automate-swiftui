@@ -28,10 +28,10 @@ struct HomeView: View {
                 HStack(alignment: .center) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Hey Steve")
-                            .font(.system(size: 14))
+                            .font(.poppins(.regular, size: 14))
                             .foregroundStyle(Color.agMutedForeground)
                         Text("Your garage")
-                            .font(.system(size: 20, weight: .bold))
+                            .font(.poppins(.bold, size: 20))
                             .foregroundStyle(Color.agForeground)
                     }
                     Spacer()
@@ -56,7 +56,7 @@ struct HomeView: View {
                                 .font(.system(size: 14))
                                 .foregroundStyle(Color.agWarning)
                             Text("\(totalAlerts) items need attention across your vehicles")
-                                .font(.system(size: 12, weight: .semibold))
+                                .font(.poppins(.semibold, size: 12))
                                 .foregroundStyle(Color.agForeground)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                             Image(systemName: "chevron.right")
@@ -93,7 +93,7 @@ struct HomeView: View {
                 // ── Something Wrong? ─────────────────────────────
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Something wrong?")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.poppins(.semibold, size: 14))
 
                     HStack(spacing: 10) {
                         DiagnoseQuickCard(
@@ -130,10 +130,10 @@ struct HomeView: View {
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Ask My Manual")
-                                .font(.system(size: 14, weight: .bold))
+                                .font(.poppins(.bold, size: 14))
                                 .foregroundStyle(Color.agForeground)
                             Text("Get plain-English answers about your \(appState.selectedVehicle?.displayName ?? "vehicle")")
-                                .font(.system(size: 11))
+                                .font(.poppins(.regular, size: 11))
                                 .foregroundStyle(Color.agMutedForeground)
                                 .lineLimit(2)
                         }
@@ -142,7 +142,7 @@ struct HomeView: View {
 
                         HStack(spacing: 2) {
                             Text("Ask")
-                                .font(.system(size: 12, weight: .medium))
+                                .font(.poppins(.medium, size: 12))
                                 .foregroundStyle(Color.agPrimary)
                             Image(systemName: "chevron.right")
                                 .font(.system(size: 10, weight: .semibold))
@@ -173,10 +173,10 @@ struct HomeView: View {
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Log Service Invoice")
-                                .font(.system(size: 14, weight: .bold))
+                                .font(.poppins(.bold, size: 14))
                                 .foregroundStyle(Color.agForeground)
                             Text("Scan or manually log a service")
-                                .font(.system(size: 11))
+                                .font(.poppins(.regular, size: 11))
                                 .foregroundStyle(Color.agMutedForeground)
                         }
 
@@ -214,11 +214,11 @@ struct HomeView: View {
                 .foregroundStyle(Color.agMutedForeground.opacity(0.3))
 
             Text("Welcome to AutoMate")
-                .font(.system(size: 16, weight: .bold))
+                .font(.poppins(.bold, size: 16))
                 .foregroundStyle(Color.agForeground)
 
             Text("Add your car to get started with maintenance tracking and diagnostics.")
-                .font(.system(size: 13))
+                .font(.poppins(.regular, size: 13))
                 .foregroundStyle(Color.agMutedForeground)
                 .multilineTextAlignment(.center)
 
@@ -229,7 +229,7 @@ struct HomeView: View {
                     Image(systemName: "plus")
                         .font(.system(size: 14, weight: .semibold))
                     Text("Add Your Car")
-                        .font(.system(size: 14, weight: .bold))
+                        .font(.poppins(.bold, size: 14))
                 }
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
@@ -249,7 +249,7 @@ struct HomeView: View {
                         Image(systemName: "eye.fill")
                             .font(.system(size: 12))
                         Text("Explore demo")
-                            .font(.system(size: 13, weight: .medium))
+                            .font(.poppins(.medium, size: 13))
                     }
                     .foregroundStyle(Color.agMutedForeground)
                 }
@@ -265,6 +265,8 @@ struct HomeDashboardVehicleCard: View {
     let vehicle: Vehicle
     let isPrimary: Bool
     let appState: AppState
+
+    @State private var showServicePlan = false
 
     var alertCount: Int {
         appState.maintenanceItems(for: vehicle.id)
@@ -290,12 +292,12 @@ struct HomeDashboardVehicleCard: View {
             // Name + Primary badge
             HStack {
                 Text(vehicle.fullDisplayName)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.poppins(.semibold, size: 14))
                     .foregroundStyle(Color.agForeground)
                 Spacer()
                 if isPrimary {
                     Text("Primary")
-                        .font(.system(size: 10, weight: .semibold))
+                        .font(.poppins(.semibold, size: 10))
                         .foregroundStyle(Color.agPrimary)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 2)
@@ -306,7 +308,7 @@ struct HomeDashboardVehicleCard: View {
 
             // Mileage
             Text("\(vehicle.mileage.formatted()) mi · Updated today")
-                .font(.system(size: 12))
+                .font(.poppins(.regular, size: 12))
                 .foregroundStyle(Color.agMutedForeground)
 
             // Status rows
@@ -316,7 +318,7 @@ struct HomeDashboardVehicleCard: View {
                         .fill(Color.agSuccess)
                         .frame(width: 10, height: 10)
                     Text("\(onTrackCount) on track")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.poppins(.medium, size: 12))
                         .foregroundStyle(Color.agForeground)
                     Spacer()
                 }
@@ -333,7 +335,7 @@ struct HomeDashboardVehicleCard: View {
                             .fill(Color.agWarning)
                             .frame(width: 10, height: 10)
                         Text("\(dueSoonCount) coming soon")
-                            .font(.system(size: 12, weight: .medium))
+                            .font(.poppins(.medium, size: 12))
                             .foregroundStyle(Color.agForeground)
                         Spacer()
                         Image(systemName: "chevron.right")
@@ -355,7 +357,7 @@ struct HomeDashboardVehicleCard: View {
                             .fill(Color.agDestructive)
                             .frame(width: 10, height: 10)
                         Text("\(overdueCount) need attention")
-                            .font(.system(size: 12, weight: .medium))
+                            .font(.poppins(.medium, size: 12))
                             .foregroundStyle(Color.agForeground)
                         Spacer()
                         Image(systemName: "chevron.right")
@@ -375,7 +377,7 @@ struct HomeDashboardVehicleCard: View {
                 Image(systemName: "info.circle")
                     .font(.system(size: 10))
                 Text("How is this calculated?")
-                    .font(.system(size: 10))
+                    .font(.poppins(.regular, size: 10))
             }
             .foregroundStyle(Color.agMutedForeground.opacity(0.6))
             .padding(.leading, 4)
@@ -390,14 +392,14 @@ struct HomeDashboardVehicleCard: View {
                         .foregroundStyle(Color.agPrimary)
                     VStack(alignment: .leading, spacing: 1) {
                         Text("Odometer")
-                            .font(.system(size: 12))
+                            .font(.poppins(.regular, size: 12))
                             .foregroundStyle(Color.agMutedForeground)
                         HStack(alignment: .lastTextBaseline, spacing: 3) {
                             Text("\(vehicle.mileage.formatted())")
-                                .font(.system(size: 14, weight: .bold))
+                                .font(.poppins(.bold, size: 14))
                                 .foregroundStyle(Color.agForeground)
                             Text("mi")
-                                .font(.system(size: 12))
+                                .font(.poppins(.regular, size: 12))
                                 .foregroundStyle(Color.agMutedForeground)
                         }
                     }
@@ -415,11 +417,11 @@ struct HomeDashboardVehicleCard: View {
             .buttonStyle(ScaleButtonStyle())
 
             // View service plan
-            Button { appState.selectedTab = .garage } label: {
+            Button { showServicePlan = true } label: {
                 HStack(spacing: 2) {
                     Spacer()
                     Text("View service plan")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.poppins(.medium, size: 12))
                         .foregroundStyle(Color.agPrimary)
                     Image(systemName: "chevron.right")
                         .font(.system(size: 10, weight: .semibold))
@@ -435,6 +437,15 @@ struct HomeDashboardVehicleCard: View {
             RoundedRectangle(cornerRadius: 16)
                 .strokeBorder(Color.agBorder, lineWidth: 1)
         )
+        .fullScreenCover(isPresented: $showServicePlan) {
+            NavigationStack {
+                // Prefer the AI-researched schedule persisted at signup/add-vehicle;
+                // fall back to demo items so previews and legacy vehicles still render.
+                let items = appState.oemSchedule(for: vehicle.id) ?? ServicePlanBuilder.demoItems
+                let sources = appState.oemSources(for: vehicle.id)
+                ServicePlanView(vehicle: vehicle, oemItems: items, sources: sources)
+            }
+        }
     }
 }
 
@@ -468,10 +479,10 @@ struct DiagnoseQuickCard: View {
                 }
                 VStack(spacing: 2) {
                     Text(title)
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.poppins(.semibold, size: 14))
                         .foregroundStyle(Color.agForeground)
                     Text(subtitle)
-                        .font(.system(size: 12))
+                        .font(.poppins(.regular, size: 12))
                         .foregroundStyle(Color.agMutedForeground)
                 }
             }

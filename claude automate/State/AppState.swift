@@ -74,6 +74,30 @@ class AppState {
         }
     }
 
+    // Per-vehicle OEM maintenance schedule (flat list with recurrence metadata)
+    // from Perplexity. Keyed by vehicle.id. Drives the Service Plan timeline.
+    var oemSchedules: [UUID: [OEMScheduleItemInput]] = [:] {
+        didSet {
+            if !isDemo && activeUserId != nil { persistOEMSchedules() }
+        }
+    }
+
+    func oemSchedule(for vehicleId: UUID) -> [OEMScheduleItemInput]? {
+        oemSchedules[vehicleId]
+    }
+
+    // Per-vehicle OEM sources (manufacturer PDFs, dealer pages, etc.) —
+    // rendered as clickable links in the Service Plan footer.
+    var oemSources: [UUID: [OEMScheduleSource]] = [:] {
+        didSet {
+            if !isDemo && activeUserId != nil { persistOEMSources() }
+        }
+    }
+
+    func oemSources(for vehicleId: UUID) -> [OEMScheduleSource] {
+        oemSources[vehicleId] ?? []
+    }
+
     func maintenanceItems(for vehicleId: UUID) -> [MaintenanceItem] {
         maintenanceItems.filter { $0.vehicleId == vehicleId }
     }
@@ -136,6 +160,8 @@ class AppState {
         vehicles = loadVehicles() ?? []
         serviceLogs = loadServiceLogs() ?? []
         maintenanceItems = loadMaintenanceItems() ?? []
+        oemSchedules = loadOEMSchedules() ?? [:]
+        oemSources = loadOEMSources() ?? [:]
 
         // Restore this user's selected vehicle
         if let savedId = UserDefaults.standard.string(forKey: "selectedVehicleId_\(userId.uuidString)"),
@@ -162,6 +188,8 @@ class AppState {
         vehicles = []
         serviceLogs = []
         maintenanceItems = []
+        oemSchedules = [:]
+        oemSources = [:]
         selectedVehicleId = nil
         isDemo = false
         selectedTab = .home
@@ -203,6 +231,8 @@ class AppState {
         vehicles.removeAll { $0.id == vehicle.id }
         serviceLogs.removeAll { $0.vehicleId == vehicle.id }
         maintenanceItems.removeAll { $0.vehicleId == vehicle.id }
+        oemSchedules.removeValue(forKey: vehicle.id)
+        oemSources.removeValue(forKey: vehicle.id)
         if selectedVehicleId == vehicle.id {
             selectedVehicleId = vehicles.first?.id
         }
@@ -249,12 +279,25 @@ class AppState {
         }
     }
 
-    /// Store baseline service logs with AI-generated maintenance items.
-    func storeBaselineServiceLogsWithAI(_ entries: [ServiceLog], items: [MaintenanceItem], for vehicleId: UUID) {
+    /// Store baseline service logs with AI-generated maintenance items and
+    /// the raw OEM schedule (used to drive the Service Plan timeline).
+    func storeBaselineServiceLogsWithAI(
+        _ entries: [ServiceLog],
+        items: [MaintenanceItem],
+        schedule: [OEMScheduleItemInput] = [],
+        sources: [OEMScheduleSource] = [],
+        for vehicleId: UUID
+    ) {
         serviceLogs.removeAll { $0.vehicleId == vehicleId && $0.shop == "AutoGuard Baseline" }
         serviceLogs.insert(contentsOf: entries, at: 0)
         maintenanceItems.removeAll { $0.vehicleId == vehicleId && ($0.category.hasPrefix("baseline-") || $0.category.hasPrefix("ai-")) }
         maintenanceItems.append(contentsOf: items)
+        if !schedule.isEmpty {
+            oemSchedules[vehicleId] = schedule
+        }
+        if !sources.isEmpty {
+            oemSources[vehicleId] = sources
+        }
     }
 
     /// Returns (name, description, category) for a skipped baseline service category.
@@ -334,6 +377,8 @@ class AppState {
         vehicles = loadVehicles() ?? []
         serviceLogs = loadServiceLogs() ?? []
         maintenanceItems = loadMaintenanceItems() ?? []
+        oemSchedules = loadOEMSchedules() ?? [:]
+        oemSources = loadOEMSources() ?? [:]
         selectedVehicleId = vehicles.first?.id
     }
 
@@ -392,6 +437,36 @@ class AppState {
         guard activeUserId != nil else { return nil }
         guard let data = try? Data(contentsOf: fileURL(for: "autoguard_maintenance_items")) else { return nil }
         return try? JSONDecoder().decode([MaintenanceItem].self, from: data)
+    }
+
+    private func persistOEMSchedules() {
+        do {
+            let data = try JSONEncoder().encode(oemSchedules)
+            try data.write(to: fileURL(for: "autoguard_oem_schedules"), options: .atomic)
+        } catch {
+            print("Failed to persist OEM schedules: \(error)")
+        }
+    }
+
+    private func loadOEMSchedules() -> [UUID: [OEMScheduleItemInput]]? {
+        guard activeUserId != nil else { return nil }
+        guard let data = try? Data(contentsOf: fileURL(for: "autoguard_oem_schedules")) else { return nil }
+        return try? JSONDecoder().decode([UUID: [OEMScheduleItemInput]].self, from: data)
+    }
+
+    private func persistOEMSources() {
+        do {
+            let data = try JSONEncoder().encode(oemSources)
+            try data.write(to: fileURL(for: "autoguard_oem_sources"), options: .atomic)
+        } catch {
+            print("Failed to persist OEM sources: \(error)")
+        }
+    }
+
+    private func loadOEMSources() -> [UUID: [OEMScheduleSource]]? {
+        guard activeUserId != nil else { return nil }
+        guard let data = try? Data(contentsOf: fileURL(for: "autoguard_oem_sources")) else { return nil }
+        return try? JSONDecoder().decode([UUID: [OEMScheduleSource]].self, from: data)
     }
 }
 

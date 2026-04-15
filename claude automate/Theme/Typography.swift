@@ -1,30 +1,31 @@
 import SwiftUI
 
 extension Font {
-    static func jakarta(_ style: JakartaStyle, size: CGFloat) -> Font {
-        .system(size: size, weight: style.weight, design: .rounded)
+    static func poppins(_ weight: PoppinsWeight, size: CGFloat) -> Font {
+        .custom(weight.fontName, size: size)
     }
 
-    static let jakartaLargeTitle: Font = .system(size: 28, weight: .bold, design: .rounded)
-    static let jakartaTitle: Font = .system(size: 22, weight: .bold, design: .rounded)
-    static let jakartaTitle2: Font = .system(size: 20, weight: .semibold, design: .rounded)
-    static let jakartaTitle3: Font = .system(size: 18, weight: .semibold, design: .rounded)
-    static let jakartaHeadline: Font = .system(size: 16, weight: .semibold, design: .rounded)
-    static let jakartaBody: Font = .system(size: 15, weight: .regular, design: .rounded)
-    static let jakartaCallout: Font = .system(size: 14, weight: .regular, design: .rounded)
-    static let jakartaCaption: Font = .system(size: 12, weight: .medium, design: .rounded)
-    static let jakartaCaption2: Font = .system(size: 11, weight: .regular, design: .rounded)
+    static let poppinsLargeTitle: Font = .custom("Poppins-Bold", size: 28)
+    static let poppinsTitle: Font     = .custom("Poppins-Bold", size: 22)
+    static let poppinsTitle2: Font    = .custom("Poppins-SemiBold", size: 20)
+    static let poppinsTitle3: Font    = .custom("Poppins-SemiBold", size: 18)
+    static let poppinsHeadline: Font  = .custom("Poppins-SemiBold", size: 16)
+    static let poppinsBody: Font      = .custom("Poppins-Regular", size: 15)
+    static let poppinsCallout: Font   = .custom("Poppins-Regular", size: 14)
+    static let poppinsCaption: Font   = .custom("Poppins-Medium", size: 12)
+    static let poppinsCaption2: Font  = .custom("Poppins-Regular", size: 11)
 }
 
-enum JakartaStyle {
-    case regular, medium, semibold, bold
+enum PoppinsWeight {
+    case light, regular, medium, semibold, bold
 
-    var weight: Font.Weight {
+    var fontName: String {
         switch self {
-        case .regular: return .regular
-        case .medium: return .medium
-        case .semibold: return .semibold
-        case .bold: return .bold
+        case .light:    return "Poppins-Light"
+        case .regular:  return "Poppins-Regular"
+        case .medium:   return "Poppins-Medium"
+        case .semibold: return "Poppins-SemiBold"
+        case .bold:     return "Poppins-Bold"
         }
     }
 }
