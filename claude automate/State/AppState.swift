@@ -127,6 +127,7 @@ class AppState {
     var showSettings = false
     var showAddVehicle = false
     var showMileageUpdater = false
+    var showEditVehicle = false
     var showServiceAlerts = false
     var showDemoWriteAlert = false
 
@@ -179,6 +180,7 @@ class AppState {
         showSettings = false
         showAddVehicle = false
         showMileageUpdater = false
+        showEditVehicle = false
         showServiceAlerts = false
     }
 
@@ -197,8 +199,20 @@ class AppState {
     // MARK: - Actions
 
     func addVehicle(_ vehicle: Vehicle) {
+        var vehicle = vehicle
+        // The odometer reading entered when adding the car is the first update.
+        if vehicle.mileageUpdatedAt == nil { vehicle.mileageUpdatedAt = .now }
         vehicles.append(vehicle)
         selectedVehicleId = vehicle.id
+    }
+
+    /// Replaces a vehicle's details (edit sheet). Stamps the mileage date when
+    /// the odometer value changed.
+    func updateVehicle(_ updated: Vehicle) {
+        guard let index = vehicles.firstIndex(where: { $0.id == updated.id }) else { return }
+        var updated = updated
+        if updated.mileage != vehicles[index].mileage { updated.mileageUpdatedAt = .now }
+        vehicles[index] = updated
     }
 
     func removeVehicle(_ vehicle: Vehicle) {
@@ -319,6 +333,7 @@ class AppState {
     func updateMileage(_ mileage: Int) {
         guard let index = vehicles.firstIndex(where: { $0.id == selectedVehicleId }) else { return }
         vehicles[index].mileage = mileage
+        vehicles[index].mileageUpdatedAt = .now
     }
 
     // MARK: - Demo Mode

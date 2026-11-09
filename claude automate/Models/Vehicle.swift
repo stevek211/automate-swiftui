@@ -17,6 +17,9 @@ struct Vehicle: Identifiable, Hashable, Codable {
     var usage: [String]
     var conditions: [String]
     var annualMileage: String?
+    /// When `mileage` was last entered or updated. nil for vehicles saved
+    /// before this was tracked (decodes as nil from older persisted data).
+    var mileageUpdatedAt: Date? = nil
 
     var displayName: String {
         "\(year) \(make) \(model)"

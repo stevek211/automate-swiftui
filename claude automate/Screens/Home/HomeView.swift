@@ -48,7 +48,7 @@ struct HomeView: View {
 
             VStack(spacing: 4) {
                 titleBlock(vehicle)
-                HomeHeroCarImage(vehicle: vehicle)
+                HomeHeroCarousel()
             }
             .padding(.top, 17)
 
@@ -115,6 +115,22 @@ struct HomeView: View {
                 .padding(.top, 7.5)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .overlay(alignment: .topTrailing) {
+            Button { appState.showEditVehicle = true } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: "pencil")
+                        .font(.system(size: 12, weight: .semibold))
+                    Text("Edit")
+                        .font(.quicksand(.semibold, size: 13))
+                }
+                .foregroundStyle(Color.homeInk.opacity(0.7))
+                .padding(.horizontal, 12)
+                .frame(height: 32)
+                .homeGlassCapsule()
+            }
+            .buttonStyle(ScaleButtonStyle())
+            .accessibilityLabel("Edit vehicle details")
+        }
     }
 
     static func subtitle(for vehicle: Vehicle) -> String {
@@ -126,6 +142,51 @@ struct HomeView: View {
     // MARK: - Stats
 
     private func statsCard(_ summary: HomeVehicleSummary) -> some View {
+        VStack(spacing: 14) {
+            statColumns(summary)
+
+            Rectangle()
+                .fill(Color.homeHairline)
+                .frame(height: 0.77)
+                .padding(.horizontal, 12)
+
+            mileageFreshnessRow(summary)
+                .padding(.horizontal, 12)
+        }
+        .padding(.horizontal, 4.77)
+        .padding(.top, 20.77)
+        .padding(.bottom, 14)
+        .background(Color.homeStatsFill, in: RoundedRectangle(cornerRadius: 20))
+        .overlay(RoundedRectangle(cornerRadius: 20).strokeBorder(Color.homeStatsBorder, lineWidth: 1))
+    }
+
+    /// "Odometer updated 3 weeks ago · Update" — nudges users to keep mileage current.
+    private func mileageFreshnessRow(_ summary: HomeVehicleSummary) -> some View {
+        let isStale = summary.mileageIsStale
+        return Button { appState.showMileageUpdater = true } label: {
+            HStack(spacing: 6) {
+                Image(systemName: isStale ? "exclamationmark.circle" : "clock")
+                    .font(.system(size: 12, weight: .medium))
+                Text(summary.mileageUpdatedText)
+                    .font(.quicksand(.medium, size: 12))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+                Spacer(minLength: 8)
+                Text("Update")
+                    .font(.quicksand(.bold, size: 12))
+                    .foregroundStyle(Color.homeInk)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(Color.homeInk)
+            }
+            .foregroundStyle(isStale ? Color.agWarning : Color.homeLabel)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(summary.mileageUpdatedText). Update odometer")
+    }
+
+    private func statColumns(_ summary: HomeVehicleSummary) -> some View {
         HStack(alignment: .top, spacing: 0) {
             Button { appState.showMileageUpdater = true } label: {
                 HomeStatColumn(
@@ -159,10 +220,6 @@ struct HomeView: View {
                 label: "Next service"
             )
         }
-        .padding(.horizontal, 4.77)
-        .padding(.vertical, 20.77)
-        .background(Color.homeStatsFill, in: RoundedRectangle(cornerRadius: 20))
-        .overlay(RoundedRectangle(cornerRadius: 20).strokeBorder(Color.homeStatsBorder, lineWidth: 1))
     }
 
     private var divider: some View {
@@ -331,11 +388,32 @@ struct HomeVehicleSummary {
     let mileage: Int
     let statusText: String
     let nextServiceMileage: Int?
+    let mileageUpdatedText: String
+    let mileageIsStale: Bool
 
-    init(vehicle: Vehicle, appState: AppState) {
+    /// After this long without an odometer update, the row turns amber.
+    static let staleAfterDays = 60
+
+    init(vehicle: Vehicle, appState: AppState, now: Date = .now) {
         // Estimated mileage = the odometer entered when the car was added
         // (updated via the mileage sheet).
         mileage = vehicle.mileage
+
+        if let updated = vehicle.mileageUpdatedAt {
+            let days = Calendar.current.dateComponents([.day], from: updated, to: now).day ?? 0
+            if Calendar.current.isDate(updated, inSameDayAs: now) {
+                mileageUpdatedText = "Odometer updated today"
+            } else {
+                let formatter = RelativeDateTimeFormatter()
+                formatter.unitsStyle = .full
+                mileageUpdatedText = "Odometer updated \(formatter.localizedString(for: updated, relativeTo: now))"
+            }
+            mileageIsStale = days >= Self.staleAfterDays
+        } else {
+            // Saved before update dates were tracked — we don't know how old it is.
+            mileageUpdatedText = "Confirm your current odometer"
+            mileageIsStale = true
+        }
 
         let overdue = appState.overdueItems(for: vehicle.id).count
         let dueSoon = appState.dueSoonItems(for: vehicle.id).count
@@ -405,10 +483,12 @@ private struct HomeHeroCarImage: View {
     /// sits right under the car regardless of body style.
     private static let imageAspect: CGFloat = 1.6
     private static let visibleFraction: CGFloat = 0.78
+    /// Width ÷ height of the visible photo band.
+    static let bandAspect: CGFloat = imageAspect / visibleFraction
 
     var body: some View {
         Color.clear
-            .aspectRatio(Self.imageAspect / Self.visibleFraction, contentMode: .fit)
+            .aspectRatio(Self.bandAspect, contentMode: .fit)
             .overlay(alignment: .top) {
                 AsyncImage(url: url, transaction: Transaction(animation: .easeIn(duration: 0.25))) { phase in
                     switch phase {
@@ -431,9 +511,69 @@ private struct HomeHeroCarImage: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
             .clipped()
+            .accessibilityLabel("\(vehicle.color) \(vehicle.make) \(vehicle.model)")
+    }
+}
+
+// MARK: - Hero carousel (swipe between cars)
+
+private struct HomeHeroCarousel: View {
+    @Environment(AppState.self) private var appState
+
+    private var selection: Binding<UUID?> {
+        Binding(
+            get: { appState.selectedVehicleId ?? appState.vehicles.first?.id },
+            set: { newValue in
+                withAnimation(.easeInOut(duration: 0.2)) { appState.selectedVehicleId = newValue }
+            }
+        )
+    }
+
+    var body: some View {
+        let vehicles = appState.vehicles
+
+        VStack(spacing: 10) {
+            Group {
+                if vehicles.count > 1 {
+                    TabView(selection: selection) {
+                        ForEach(vehicles) { vehicle in
+                            HomeHeroCarImage(vehicle: vehicle)
+                                .tag(Optional(vehicle.id))
+                        }
+                    }
+                    .tabViewStyle(.page(indexDisplayMode: .never))
+                    .aspectRatio(HomeHeroCarImage.bandAspect, contentMode: .fit)
+                } else if let vehicle = vehicles.first {
+                    HomeHeroCarImage(vehicle: vehicle)
+                }
+            }
             // Bleed slightly past the 24pt gutters like the design (438pt image in a 390pt column).
             .padding(.horizontal, -12)
-            .accessibilityLabel("\(vehicle.color) \(vehicle.make) \(vehicle.model)")
+
+            if vehicles.count > 1 {
+                pageDots(vehicles)
+            }
+        }
+    }
+
+    /// Mercedes-style dots so a second car is discoverable without opening the switcher menu.
+    private func pageDots(_ vehicles: [Vehicle]) -> some View {
+        let current = selection.wrappedValue
+        return HStack(spacing: 6) {
+            ForEach(vehicles) { vehicle in
+                let isCurrent = vehicle.id == current
+                Capsule()
+                    .fill(isCurrent ? Color.homeInk : Color.homeInk.opacity(0.18))
+                    .frame(width: isCurrent ? 18 : 6, height: 6)
+                    .padding(.vertical, 8) // larger tap target
+                    .contentShape(Rectangle())
+                    .onTapGesture { selection.wrappedValue = vehicle.id }
+            }
+        }
+        .animation(.easeInOut(duration: 0.2), value: current)
+        .accessibilityElement()
+        .accessibilityLabel("Car \((vehicles.firstIndex { $0.id == current } ?? 0) + 1) of \(vehicles.count)")
+        .accessibilityHint("Swipe the car photo to switch cars")
     }
 }
 
@@ -455,7 +595,14 @@ private struct VehicleSwitcherButton: View {
                     }
                 }
             }
-            if !appState.vehicles.isEmpty { Divider() }
+            if !appState.vehicles.isEmpty {
+                Divider()
+                Button {
+                    appState.showEditVehicle = true
+                } label: {
+                    Label("Edit vehicle details", systemImage: "pencil")
+                }
+            }
             Button {
                 appState.showAddVehicle = true
             } label: {

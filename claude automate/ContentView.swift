@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(AppState.self) private var appState
+    @State private var bottomNavHeight: CGFloat = 0
 
     var body: some View {
         @Bindable var state = appState
@@ -12,10 +13,17 @@ struct ContentView: View {
 
             selectedTabView
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                // The nav's safe-area inset doesn't reach scroll views inside the
+                // NavigationStacks, so the last cards ended up hidden behind it.
+                // Give every tab's scroll content room to clear the nav.
+                .contentMargins(.bottom, bottomNavHeight, for: .scrollContent)
         }
         .background(Color(hex: "F5F6F7"))
         .safeAreaInset(edge: .bottom, spacing: 0) {
             AutomateBottomNav(selectedTab: $state.selectedTab)
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: {
+                    bottomNavHeight = $0
+                }
         }
         .sheet(isPresented: $state.showQuickLog) {
             QuickLogView()
@@ -28,6 +36,9 @@ struct ContentView: View {
         }
         .sheet(isPresented: $state.showMileageUpdater) {
             MileageUpdaterSheet()
+        }
+        .sheet(isPresented: $state.showEditVehicle) {
+            EditVehicleSheet()
         }
         .sheet(isPresented: $state.showServiceAlerts) {
             ServiceAlertListSheet()
