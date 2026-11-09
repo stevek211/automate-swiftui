@@ -510,9 +510,11 @@ private struct HomeStatColumn: View {
                 .tracking(0.117)
                 .foregroundStyle(Color.homeLabel)
                 .lineLimit(1)
-                .minimumScaleFactor(0.8)
+                .minimumScaleFactor(0.75)
                 .padding(.top, 4)
         }
+        // Keep labels off the divider hairlines; long labels shrink instead of touching them.
+        .padding(.horizontal, 8)
         .frame(maxWidth: .infinity)
         .contentShape(Rectangle())
     }
