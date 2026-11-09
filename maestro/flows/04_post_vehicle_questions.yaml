@@ -1,0 +1,91 @@
+appId: steve.kurien.claude-automate
+---
+# Entry screen: give transition animation time to settle, then tap CTA.
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    point: "50%,74%"
+
+# --- Screen 1: Oil ---
+# Give the question animation time to finish before tapping.
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    point: 19%,48%
+- waitForAnimationToEnd:
+    timeout: 1500
+
+# Recency sub-chip (full a11y text: "Within the last 3 months, You're in great shape")
+- tapOn: Within the last 3 months, You're in great shape
+- waitForAnimationToEnd:
+    timeout: 500
+
+# Scroll to bring Continue into view (Studio-recorded swipe).
+- swipe:
+    start: "73%,53%"
+    end: "76%,33%"
+    duration: 663
+- waitForAnimationToEnd:
+    timeout: 500
+- tapOn:
+    text: "Continue"
+
+# --- Screen 2: Tires ---
+- waitForAnimationToEnd:
+    timeout: 3000
+- tapOn:
+    text: "Within the last 6 months"
+- waitForAnimationToEnd:
+    timeout: 500
+- scrollUntilVisible:
+    element:
+      text: "Continue"
+    direction: DOWN
+- tapOn:
+    text: "Continue"
+
+# --- Screen 3: Brakes ---
+- waitForAnimationToEnd:
+    timeout: 3000
+- tapOn:
+    text: "Within the last year"
+- waitForAnimationToEnd:
+    timeout: 500
+- scrollUntilVisible:
+    element:
+      text: "Continue"
+    direction: DOWN
+- tapOn:
+    text: "Continue"
+
+# --- Screen 4: Air filter ---
+- waitForAnimationToEnd:
+    timeout: 3000
+- tapOn:
+    text: "Within the last year"
+- waitForAnimationToEnd:
+    timeout: 500
+- scrollUntilVisible:
+    element:
+      text: "Continue"
+    direction: DOWN
+- tapOn:
+    text: "Continue"
+
+# --- Screen 5: Transmission ---
+- waitForAnimationToEnd:
+    timeout: 3000
+- tapOn:
+    text: "Yes, recently"
+- waitForAnimationToEnd:
+    timeout: 500
+- scrollUntilVisible:
+    element:
+      text: "See my service plan"
+    direction: DOWN
+- tapOn:
+    text: "See my service plan"
+
+# Wait for AIMaintenanceAnalyzer + Perplexity to finish before handing off.
+- waitForAnimationToEnd:
+    timeout: 5000

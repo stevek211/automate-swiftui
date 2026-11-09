@@ -6,7 +6,9 @@ struct OnboardingView: View {
     let onComplete: () -> Void
 
     @State private var showAddVehicle = false
+    @State private var showGarageIntro = false
     @State private var showSignUp = false
+    @State private var signUpStartAsLogin = false
     @State private var showSplash = true
     @State private var splashOpacity: Double = 1.0
     @State private var logoScale: Double = 0.7
@@ -35,7 +37,13 @@ struct OnboardingView: View {
                     }
             } else if showAddVehicle {
                 OnboardingAddVehicleView {
+                    AnalyticsService.shared.track(.onboardingCompleted)
                     onComplete()
+                }
+                .transition(.move(edge: .trailing))
+            } else if showGarageIntro {
+                OnboardingGarageIntroView {
+                    withAnimation { showAddVehicle = true }
                 }
                 .transition(.move(edge: .trailing))
             } else {
@@ -53,6 +61,9 @@ struct OnboardingView: View {
                     authPage
                 }
                 .transition(.move(edge: .leading))
+                .onAppear {
+                    AnalyticsService.shared.track(.onboardingViewed)
+                }
             }
         }
         .animation(.easeInOut(duration: 0.35), value: showAddVehicle)
@@ -99,9 +110,10 @@ struct OnboardingView: View {
             .padding(.horizontal, 24)
             .navigationDestination(isPresented: $showSignUp) {
                 SignUpView(
+                    isLogin: signUpStartAsLogin,
                     onSignedUp: {
                         showSignUp = false
-                        withAnimation { showAddVehicle = true }
+                        withAnimation { showGarageIntro = true }
                     },
                     onBack: {
                         showSignUp = false
@@ -192,23 +204,24 @@ struct OnboardingView: View {
                     .rotationEffect(.degrees(8))
                     .offset(x: 120, y: 165)
             }
-            .frame(height: UIScreen.main.bounds.height * 0.50)
+            .frame(height: ((UIApplication.shared.connectedScenes.first as? UIWindowScene)?.screen.bounds.height ?? 800) * 0.50)
 
             Spacer(minLength: 0)
 
             // Bottom CTA area
             VStack(spacing: 8) {
                 Text("Welcome to AutoMate")
-                    .font(.custom("Poppins-Bold", size: 26))
+                    .font(.custom("Quicksand-Bold", size: 26))
                     .foregroundStyle(Color(hex: "1F1A17"))
 
                 Text("Know your car")
-                    .font(.custom("Poppins-Regular", size: 16))
+                    .font(.custom("Quicksand-Regular", size: 16))
                     .foregroundStyle(Color.agOnboardingSubtext)
                     .padding(.bottom, 4)
 
                 VStack(spacing: 10) {
                     Button {
+                        signUpStartAsLogin = false
                         showSignUp = true
                     } label: {
                         HStack(spacing: 12) {
@@ -216,8 +229,8 @@ struct OnboardingView: View {
                                 .font(.system(size: 16, weight: .medium))
                                 .foregroundStyle(Color(hex: "101828"))
                                 .frame(width: 20, height: 20)
-                            Text("Get Started")
-                                .font(.custom("Poppins-Medium", size: 14))
+                            Text("Create an account")
+                                .font(.custom("Quicksand-Medium", size: 14))
                                 .foregroundStyle(Color(hex: "101828"))
                                 .tracking(-0.15)
                         }
@@ -232,6 +245,7 @@ struct OnboardingView: View {
                     .buttonStyle(OnboardingScaleStyle())
 
                     Button {
+                        signUpStartAsLogin = true
                         showSignUp = true
                     } label: {
                         HStack(spacing: 12) {
@@ -240,7 +254,7 @@ struct OnboardingView: View {
                                 .foregroundStyle(Color(hex: "101828"))
                                 .frame(width: 20, height: 20)
                             Text("Log in")
-                                .font(.custom("Poppins-Medium", size: 14))
+                                .font(.custom("Quicksand-Medium", size: 14))
                                 .foregroundStyle(Color(hex: "101828"))
                                 .tracking(-0.15)
                         }
@@ -255,18 +269,20 @@ struct OnboardingView: View {
                     .buttonStyle(OnboardingScaleStyle())
                 }
 
-                Text("By signing up you agree to our ")
-                    .font(.custom("Poppins-Regular", size: 11))
-                    .foregroundStyle(Color.agOnboardingMuted) +
-                Text("Terms")
-                    .font(.custom("Poppins-Medium", size: 11))
-                    .foregroundStyle(Color.agOnboardingBrown) +
-                Text(" and ")
-                    .font(.custom("Poppins-Regular", size: 11))
-                    .foregroundStyle(Color.agOnboardingMuted) +
-                Text("Privacy Policy")
-                    .font(.custom("Poppins-Medium", size: 11))
-                    .foregroundStyle(Color.agOnboardingBrown)
+                HStack(spacing: 0) {
+                    Text("By signing up you agree to our ")
+                        .font(.custom("Quicksand-Regular", size: 11))
+                        .foregroundStyle(Color.agOnboardingMuted)
+                    Text("Terms")
+                        .font(.custom("Quicksand-Medium", size: 11))
+                        .foregroundStyle(Color.agOnboardingBrown)
+                    Text(" and ")
+                        .font(.custom("Quicksand-Regular", size: 11))
+                        .foregroundStyle(Color.agOnboardingMuted)
+                    Text("Privacy Policy")
+                        .font(.custom("Quicksand-Medium", size: 11))
+                        .foregroundStyle(Color.agOnboardingBrown)
+                }
             }
             .padding(.bottom, 32)
         }

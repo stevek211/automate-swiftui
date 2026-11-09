@@ -17,7 +17,7 @@ struct QuickActionButton: View {
                     .clipShape(Circle())
 
                 Text(title)
-                    .font(.jakartaCaption)
+                    .font(.poppinsCaption)
                     .foregroundStyle(Color.agForeground)
             }
             .frame(maxWidth: .infinity)

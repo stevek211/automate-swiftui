@@ -48,6 +48,11 @@ class AuthState {
     private var appleSignInHelper: AppleSignInHelper?
 
     init() {
+        if PreviewSupport.isRunningForPreviews {
+            isLoading = false
+            return
+        }
+
         // Restore session synchronously is not possible; we'll rely on authStateChanges
         isLoading = true
 
@@ -57,12 +62,21 @@ class AuthState {
                 guard let self else { return }
                 await MainActor.run {
                     switch event {
-                    case .signedIn, .tokenRefreshed, .userUpdated:
+                    case .signedIn:
+                        if let session {
+                            let user = LocalUser(from: session.user)
+                            self.currentUser = user
+                            let method = user.authProvider.rawValue
+                            AnalyticsService.shared.identify(userId: user.id.uuidString)
+                            AnalyticsService.shared.track(.logInCompleted(method: method))
+                        }
+                    case .tokenRefreshed, .userUpdated:
                         if let session {
                             self.currentUser = LocalUser(from: session.user)
                         }
                     case .signedOut:
                         self.currentUser = nil
+                        AnalyticsService.shared.reset()
                     default:
                         break
                     }
@@ -102,8 +116,8 @@ class AuthState {
         guard !normalizedEmail.isEmpty else {
             return (false, "Please enter your email")
         }
-        guard password.count >= 6 else {
-            return (false, "Password must be at least 6 characters")
+        guard password.count >= 8 else {
+            return (false, "Password must be at least 8 characters")
         }
 
         do {
@@ -126,8 +140,8 @@ class AuthState {
         guard !normalizedEmail.isEmpty else {
             return (false, "Please enter your email")
         }
-        guard password.count >= 6 else {
-            return (false, "Password must be at least 6 characters")
+        guard password.count >= 8 else {
+            return (false, "Password must be at least 8 characters")
         }
 
         do {
@@ -188,6 +202,21 @@ class AuthState {
                 provider: .google,
                 redirectTo: URL(string: "com.automate.app://auth-callback")
             )
+            return (true, nil)
+        } catch {
+            return (false, error.localizedDescription)
+        }
+    }
+
+    // MARK: - Reset Password
+
+    func resetPassword(email: String) async -> (success: Bool, error: String?) {
+        let normalized = email.lowercased().trimmingCharacters(in: .whitespaces)
+        guard !normalized.isEmpty else {
+            return (false, "Please enter your email")
+        }
+        do {
+            try await SupabaseManager.client.auth.resetPasswordForEmail(normalized)
             return (true, nil)
         } catch {
             return (false, error.localizedDescription)

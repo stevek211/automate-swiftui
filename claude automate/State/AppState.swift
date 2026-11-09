@@ -122,18 +122,8 @@ class AppState {
     var carSystems: [CarSystem] { ReferenceData.carSystems }
     var articles: [LearningArticle] { ReferenceData.articles }
 
-    // Chat
-    var chatMessages: [ChatMessage] = [
-        ChatMessage(
-            text: "Hi! I'm your car assistant. Ask me anything about your vehicle — maintenance, warning lights, or how things work.",
-            isUser: false,
-            suggestions: ["When should I change my oil?", "What does the check engine light mean?", "How do I check tire pressure?"]
-        )
-    ]
-
     // Sheet presentation state
     var showQuickLog = false
-    var showChat = false
     var showSettings = false
     var showAddVehicle = false
     var showMileageUpdater = false
@@ -172,14 +162,6 @@ class AppState {
             selectedVehicleId = vehicles.first?.id
         }
 
-        // Reset chat to welcome message
-        chatMessages = [
-            ChatMessage(
-                text: "Hi! I'm your car assistant. Ask me anything about your vehicle — maintenance, warning lights, or how things work.",
-                isUser: false,
-                suggestions: ["When should I change my oil?", "What does the check engine light mean?", "How do I check tire pressure?"]
-            )
-        ]
     }
 
     /// Called on logout — wipes all in-memory user data, no files touched.
@@ -194,18 +176,10 @@ class AppState {
         isDemo = false
         selectedTab = .home
         showQuickLog = false
-        showChat = false
         showSettings = false
         showAddVehicle = false
         showMileageUpdater = false
         showServiceAlerts = false
-        chatMessages = [
-            ChatMessage(
-                text: "Hi! I'm your car assistant. Ask me anything about your vehicle — maintenance, warning lights, or how things work.",
-                isUser: false,
-                suggestions: ["When should I change my oil?", "What does the check engine light mean?", "How do I check tire pressure?"]
-            )
-        ]
     }
 
     // MARK: - Demo Write Guard
@@ -261,7 +235,7 @@ class AppState {
             let isUnknown = entry.notes?.contains("Status: unknown") == true
             guard isUnknown else { continue }
 
-            let (name, description, category) = baselineAttentionInfo(for: entry.category)
+            let (name, description, _) = baselineAttentionInfo(for: entry.category)
             let item = MaintenanceItem(
                 id: UUID(),
                 vehicleId: vehicleId,
@@ -345,23 +319,6 @@ class AppState {
     func updateMileage(_ mileage: Int) {
         guard let index = vehicles.firstIndex(where: { $0.id == selectedVehicleId }) else { return }
         vehicles[index].mileage = mileage
-    }
-
-    func sendChatMessage(_ text: String) {
-        chatMessages.append(ChatMessage(text: text, isUser: true))
-
-        let responses = [
-            "That's a great question! For your \(selectedVehicle?.displayName ?? "car"), I'd recommend checking your owner's manual for the manufacturer's specific recommendation. Generally, most modern cars need an oil change every 5,000–7,500 miles with synthetic oil.",
-            "Based on what you're describing, it could be a few things. I'd suggest starting with a visual inspection and checking your fluid levels. If the issue persists, it's worth getting a professional diagnostic.",
-            "Good news — that's usually a straightforward fix. Most shops can handle it in under an hour, and parts are typically $50–$150 depending on your vehicle.",
-        ]
-
-        let response = ChatMessage(
-            text: responses.randomElement()!,
-            isUser: false,
-            suggestions: ["Tell me more", "What will it cost?", "Can I do it myself?"]
-        )
-        chatMessages.append(response)
     }
 
     // MARK: - Demo Mode

@@ -1,353 +1,631 @@
 import SwiftUI
+import Lottie
 
-/// After adding a vehicle during onboarding, asks 5 baseline service questions
-/// (oil, tires, brakes, air filter, battery) to build initial maintenance history.
-/// Matches React's PostVehicleServiceSetupFlow.tsx
+/// After adding a vehicle, asks 5 baseline service questions (oil, tires,
+/// brakes, air filter, transmission) to build initial maintenance history.
 struct PostVehicleServiceSetupFlow: View {
     @Environment(AppState.self) private var appState
     let vehicle: Vehicle
     let onFinish: () -> Void
 
-    @State private var currentScreen = 0
+    @State private var currentScreen = -1  // -1 = entry; 0...4 = questions
     @State private var answers: [String: String] = [:]
     @State private var oilMileage = ""
-    @State private var brakeMileage = ""
     @State private var isAnalyzing = false
+    @State private var navigationDirection = 1
 
-    private let screens = ["oil", "tire", "brake", "air", "battery"]
+    private let screens = ["oil", "tire", "brake", "air", "transmission"]
 
-    private var progress: Double {
-        Double(currentScreen + 1) / Double(screens.count)
+    private var questionAnimation: Animation {
+        .easeInOut(duration: 0.28)
+    }
+
+    private var questionTransition: AnyTransition {
+        .asymmetric(
+            insertion: .move(edge: navigationDirection >= 0 ? .trailing : .leading)
+                .combined(with: .opacity),
+            removal: .move(edge: navigationDirection >= 0 ? .leading : .trailing)
+                .combined(with: .opacity)
+        )
     }
 
     var body: some View {
-        let _ = print("🚗 [ServiceSetup] Showing for \(vehicle.displayName) — screen \(currentScreen)/\(screens.count), isAnalyzing=\(isAnalyzing)")
-        VStack(spacing: 0) {
-            // Header
-            VStack(spacing: 12) {
-                HStack {
-                    if currentScreen > 0 {
-                        Button {
-                            withAnimation(.spring(duration: 0.2)) { currentScreen -= 1 }
-                        } label: {
-                            HStack(spacing: 4) {
-                                Image(systemName: "arrow.left")
-                                    .font(.system(size: 14))
-                                Text("Back")
-                                    .font(.system(size: 14, weight: .medium))
-                            }
-                            .foregroundStyle(Color.agMutedForeground)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    Spacer()
-                    Text("Service History")
-                        .font(.system(size: 18, weight: .bold))
-                        .foregroundStyle(Color.agForeground)
-                    Spacer()
-                    // Spacer for symmetry
-                    Color.clear.frame(width: 50, height: 32)
-                }
-
-                // Progress bar
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        Capsule()
-                            .fill(Color.agMuted)
-                            .frame(height: 4)
-                        Capsule()
-                            .fill(Color.agPrimary)
-                            .frame(width: geo.size.width * progress, height: 4)
-                            .animation(.spring(duration: 0.3), value: progress)
-                    }
-                }
-                .frame(height: 4)
-
-                Text("\(vehicle.year, format: .number.grouping(.never)) \(vehicle.make) \(vehicle.model)")
-                    .font(.system(size: 12))
-                    .foregroundStyle(Color.agMutedForeground)
+        Group {
+            if currentScreen == -1 {
+                entryScreen
+                    .id("entry")
+                    .transition(questionTransition)
+            } else {
+                questionFlow
+                    .id(currentScreen)
+                    .transition(questionTransition)
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 16)
-            .padding(.bottom, 12)
-            .background(Color.agBackground)
+        }
+        .background(Color.agBackground)
+        .allowsHitTesting(!isAnalyzing)
+        .overlay { if isAnalyzing { analyzingOverlay } }
+    }
 
-            Divider()
+    // MARK: - Entry Screen
 
-            // Content
+    private var entryScreen: some View {
+        VStack(spacing: 0) {
+            Spacer().frame(height: 44)
+
+            Spacer().frame(height: 24)  // instead of open-ended Spacer()
+
+            ZStack {
+                Image("car-illustration")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(height: 180)
+                    .scaleEffect(x: 1.75, y: 2.0, anchor: .center) // visual width only
+            }
+            .frame(height: 180)              // fixed layout space
+                .frame(maxWidth: .infinity)   // full width
+                .padding(.bottom, 10)
+
+            VStack(spacing: 0) {
+                Text("\(vehicle.year, format: .number.grouping(.never)) \(vehicle.make) \(vehicle.model)")
+                    .font(Font.custom("Quicksand", size: 14))
+                    .foregroundStyle(Color(red: 0.42, green: 0.42, blue: 0.42))
+                    .padding(.bottom, 12)
+
+                Text("Let's protect you\nat the shop")
+                    .font(Font.custom("Quicksand", size: 28).weight(.medium))
+                    .foregroundStyle(Color(red: 0.23, green: 0.23, blue: 0.23))
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(7)
+                    .padding(.bottom, 20)
+
+                Text("Tell us what's been done and we'll tell you exactly what your \(vehicle.model) needs")
+                    .font(Font.custom("Quicksand", size: 16))
+                    .foregroundStyle(Color(red: 0.42, green: 0.42, blue: 0.42))
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(10)
+                    .padding(.horizontal, 40)
+                    .padding(.bottom, 28)
+
+                HStack(spacing: 6) {
+                    Circle().fill(Color(red: 0.83, green: 0.64, blue: 0.45)).frame(width: 10, height: 10)
+                    ForEach(0..<4, id: \.self) { _ in
+                        Circle().fill(Color.black.opacity(0.1)).frame(width: 8, height: 8)
+                    }
+                }
+                .padding(.bottom, 28)
+
+                VStack(spacing: 12) {
+                    Button {
+                        navigationDirection = 1
+                        withAnimation(questionAnimation) { currentScreen = 0 }
+                    } label: {
+                        Text("Get started — takes 60 seconds")
+                            .font(Font.custom("Quicksand", size: 14).weight(.medium))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 48)
+                            .background(Color(red: 0.83, green: 0.64, blue: 0.45))
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 14)
+                                    .strokeBorder(Color.black.opacity(0.25), lineWidth: 0.5)
+                            )
+                            .shadow(color: .black.opacity(0.25), radius: 3, x: 0, y: 2)
+                    }
+                    .buttonStyle(ScaleButtonStyle())
+
+                    Button {
+                        onFinish()
+                    } label: {
+                        Text("Skip for now — I'll add this later")
+                            .font(Font.custom("Quicksand", size: 14).weight(.medium))
+                            .foregroundStyle(Color(red: 0.42, green: 0.42, blue: 0.42))
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 36)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 28)
+                .padding(.bottom, 24)
+            }
+            .offset(y: -18)
+        }
+    }
+
+    // MARK: - Question Flow
+
+    @ViewBuilder
+    private var questionFlow: some View {
+        if screens[currentScreen] == "oil" {
+            oilQuestionFlow
+        } else if screens[currentScreen] == "tire" {
+            tireQuestionFlow
+        } else {
+            defaultQuestionFlow
+        }
+    }
+
+    private var defaultQuestionFlow: some View {
+        VStack(spacing: 0) {
+            questionHeader
+            ScrollView {
+                VStack(spacing: 20) {
+                    heroIcon(for: screens[currentScreen])
+                        .padding(.top, 38)
+                    Text(questionTitle(for: screens[currentScreen]))
+                        .font(.system(size: 22, weight: .medium))
+                        .foregroundStyle(Color.agForeground)
+                        .multilineTextAlignment(.center)
+                        .lineSpacing(4)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.horizontal, 20)
+                    Text(questionSubtitle(for: screens[currentScreen]))
+                        .font(.system(size: 14))
+                        .foregroundStyle(Color.agMutedForeground)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.horizontal, 20)
+
+                    questionBody(for: screens[currentScreen])
+                        .padding(.horizontal, 20)
+                        .padding(.top, 8)
+                }
+                .padding(.bottom, 120)
+            }
+            bottomCTA
+        }
+    }
+
+    private var oilQuestionFlow: some View {
+        VStack(spacing: 0) {
+            questionHeader
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
-                    // Info card on first screen
-                    if currentScreen == 0 {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Let's build your service baseline")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundStyle(Color.agForeground)
-                            Text("Answer a few quick questions so we can track your maintenance schedule. Don't worry if you're not sure — estimates are fine!")
-                                .font(.system(size: 12))
-                                .foregroundStyle(Color.agMutedForeground)
+                    oilIllustrationPlaceholder
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.top, 38)
+
+                    VStack(alignment: .center, spacing: 12) {
+                        Text(questionTitle(for: "oil"))
+                            .font(Font.custom("Quicksand", size: 22).weight(.medium))
+                            .foregroundStyle(Color(red: 0.23, green: 0.23, blue: 0.23))
+                            .multilineTextAlignment(.center)
+                            .frame(width: 324, alignment: .top)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        Text(questionSubtitle(for: "oil"))
+                            .font(Font.custom("Quicksand", size: 14))
+                            .foregroundStyle(Color(red: 0.42, green: 0.42, blue: 0.42))
+                            .multilineTextAlignment(.center)
+                            .frame(width: 367, alignment: .top)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .center)
+
+                    triStateRow(key: "oil", options: [("yes", "Yes"), ("no", "No"), ("unsure", "Not sure")])
+
+                    if answers["oil"] == "yes" {
+                        VStack(alignment: .leading, spacing: 12) {
+                            sectionHeader("How recent?")
+                            optionList([
+                                ("within-3m", "Within the last 3 months", "You're in great shape"),
+                                ("3-6m", "3–6 months ago", "Might be coming up soon"),
+                                ("6-12m", "6–12 months ago", "Probably getting close for a change")
+                            ], key: "oilRecency")
                         }
-                        .padding(16)
-                        .background(Color.agPrimary.opacity(0.05))
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16)
-                                .strokeBorder(Color.agPrimary.opacity(0.1), lineWidth: 1)
+
+                        mileageInputField(
+                            label: "Mileage at last oil change (optional)",
+                            context: vehicleMileageSummary,
+                            placeholder: "e.g., 45,000",
+                            text: $oilMileage
                         )
                     }
-
-                    // Question
-                    questionView(for: screens[currentScreen])
                 }
                 .padding(.horizontal, 20)
-                .padding(.top, 20)
-                .padding(.bottom, 100)
+                .padding(.bottom, 120)
             }
+            bottomCTA
+        }
+        .background(Color.white)
+    }
 
-            // Bottom CTA
-            VStack(spacing: 0) {
-                Divider()
-                HStack(spacing: 12) {
+    private var tireQuestionFlow: some View {
+        VStack(spacing: 0) {
+            questionHeader
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    tireIllustrationPlaceholder
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.top, 38)
+
+                    VStack(alignment: .center, spacing: 12) {
+                        Text(questionTitle(for: "tire"))
+                            .font(Font.custom("Quicksand", size: 22).weight(.medium))
+                            .foregroundStyle(Color(red: 0.23, green: 0.23, blue: 0.23))
+                            .multilineTextAlignment(.center)
+                            .frame(width: 354, alignment: .top)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        Text(questionSubtitle(for: "tire"))
+                            .font(Font.custom("Quicksand", size: 14))
+                            .foregroundStyle(Color(red: 0.42, green: 0.42, blue: 0.42))
+                            .multilineTextAlignment(.center)
+                            .frame(width: 354, alignment: .top)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .center)
+
+                    optionList([
+                        ("within-6m", "Within the last 6 months", "Right on schedule"),
+                        ("6-12m", "6–12 months ago", "Probably due soon"),
+                        ("over-1y", "More than a year ago", "Likely overdue"),
+                        ("unknown", "I'm not sure", "We'll keep an eye on it")
+                    ], key: "tire")
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 120)
+            }
+            bottomCTA
+        }
+        .background(Color.white)
+    }
+
+    private var questionHeader: some View {
+        VStack(spacing: 12) {
+            ZStack {
+                HStack {
+                    Button {
+                        navigationDirection = -1
+                        withAnimation(questionAnimation) {
+                            if currentScreen == 0 { currentScreen = -1 }
+                            else { currentScreen -= 1 }
+                        }
+                    } label: {
+                        Text("← Back")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(Color.agMutedForeground)
+                    }
+                    .buttonStyle(.plain)
+
+                    Spacer()
+
                     Button {
                         skipAndAdvance()
                     } label: {
                         Text("Skip")
                             .font(.system(size: 14, weight: .medium))
                             .foregroundStyle(Color.agMutedForeground)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 14)
-                            .background(Color.agMuted)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
                     }
-                    .buttonStyle(ScaleButtonStyle())
+                    .buttonStyle(.plain)
+                }
 
-                    Button {
-                        advance()
-                    } label: {
-                        Text(currentScreen == screens.count - 1 ? "Finish Setup" : "Next")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 14)
-                            .background(Color.agPrimary)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                    }
-                    .buttonStyle(ScaleButtonStyle())
-                    .disabled(answers[screens[currentScreen]] == nil)
-                    .opacity(answers[screens[currentScreen]] != nil ? 1 : 0.3)
+                Text("\(currentScreen + 1) of \(screens.count)")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color.agMutedForeground)
+            }
+
+            // Segmented progress bar — 5 pills
+            HStack(spacing: 6) {
+                ForEach(0..<screens.count, id: \.self) { i in
+                    Capsule()
+                        .fill(i <= currentScreen ? Color(red: 0.83, green: 0.64, blue: 0.45) : Color.agForeground.opacity(0.04))
+                        .frame(height: 6)
                 }
             }
-            .padding(16)
-            .background(Color.agBackground.opacity(0.95))
         }
-        .background(Color.agBackground)
-        .allowsHitTesting(!isAnalyzing)
-        .overlay {
-            if isAnalyzing {
-                ZStack {
-                    Color.agBackground.opacity(0.92)
-                        .ignoresSafeArea()
-                    VStack(spacing: 20) {
-                        ProgressView()
-                            .controlSize(.large)
-                            .tint(Color.agPrimary)
-                        Text("Analyzing your vehicle's\nmaintenance needs...")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(Color.agForeground)
-                            .multilineTextAlignment(.center)
-                        Text("This takes a few seconds")
-                            .font(.system(size: 13))
-                            .foregroundStyle(Color.agMutedForeground)
-                    }
-                }
+        .padding(.horizontal, 20)
+        .padding(.top, 16)
+        .padding(.bottom, 12)
+    }
+
+    // MARK: - Per-screen content
+
+    private func heroIconName(for screen: String) -> String {
+        switch screen {
+        case "oil": return "drop.fill"
+        case "tire": return "tire"
+        case "brake": return "circle.hexagongrid.fill"
+        case "air": return "wind"
+        case "transmission": return "gearshape.2.fill"
+        default: return "wrench.and.screwdriver.fill"
+        }
+    }
+
+    private func heroIcon(for screen: String) -> some View {
+        Group {
+            if screen == "brake" {
+                Image("Brake")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 83, height: 83)
+            } else if screen == "air" {
+                Image("AirFilter")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 83, height: 83)
+            } else if screen == "transmission" {
+                Image("Transmission")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 83, height: 83)
+            } else {
+                Image(systemName: heroIconName(for: screen))
+                    .font(.system(size: 56, weight: .light))
+                    .foregroundStyle(Color.agPrimary)
+                    .frame(height: 80)
             }
         }
     }
 
-    // MARK: - Questions
+    private var oilIllustrationPlaceholder: some View {
+        Image("OilChange")
+            .resizable()
+            .scaledToFit()
+            .frame(width: 83, height: 83)
+    }
+
+    private var tireIllustrationPlaceholder: some View {
+        Image("Tire")
+            .resizable()
+            .scaledToFit()
+            .frame(width: 83, height: 83)
+    }
+
+    private func questionTitle(for screen: String) -> String {
+        switch screen {
+        case "oil": return "Has your oil been changed in the last year?"
+        case "tire": return "When did you last rotate your tires?"
+        case "brake": return "Have your brakes been serviced?"
+        case "air": return "When was your air filter replaced?"
+        case "transmission": return "Has your transmission fluid ever been serviced or changed?"
+        default: return ""
+        }
+    }
+
+    private func questionSubtitle(for screen: String) -> String {
+        switch screen {
+        case "oil": return "Check the sticker on your windshield, your dash reminder, or your last service receipt."
+        case "tire": return "Usually done every 5,000–7,500 miles, depending on your car"
+        case "brake": return "Pads, rotors, or fluid — any brake work counts"
+        case "air": return "Engine or cabin — either one counts here"
+        case "transmission": return "This depends on your vehicle and transmission type. If you're not sure, that's okay!"
+        default: return ""
+        }
+    }
 
     @ViewBuilder
-    private func questionView(for screen: String) -> some View {
+    private func questionBody(for screen: String) -> some View {
         switch screen {
         case "oil":
-            questionSection(
-                icon: "drop.fill",
-                iconColor: Color.agPrimary,
-                title: "Last Oil Change",
-                subtitle: "When was the last time you changed the oil?",
-                options: [
-                    ("within-3m", "Within the last 3 months"),
-                    ("3-6m", "3–6 months ago"),
-                    ("6-12m", "6–12 months ago"),
-                    ("over-1y", "Over a year ago"),
-                ],
-                key: "oil"
-            )
+            VStack(spacing: 16) {
+                triStateRow(key: "oil", options: [("yes", "Yes"), ("no", "No"), ("unsure", "Not sure")])
 
-            // Optional mileage
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Estimated mileage at last oil change (optional)")
-                    .font(.system(size: 12))
-                    .foregroundStyle(Color.agMutedForeground)
-                TextField("e.g. 44,000", text: $oilMileage)
-                    .font(.system(size: 16, weight: .medium))
-                    .keyboardType(.numberPad)
-                    .padding(12)
-                    .background(Color.agCard)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .strokeBorder(Color.agBorder, lineWidth: 1)
-                    )
+                if answers["oil"] == "yes" {
+                    sectionHeader("HOW RECENT?")
+                    optionList([
+                        ("within-3m", "Within the last 3 months", "You're in great shape"),
+                        ("3-6m", "3–6 months ago", "Might be coming up soon"),
+                        ("6-12m", "6–12 months ago", "Probably getting close for a change")
+                    ], key: "oilRecency")
+                }
+
+                mileageInputField(
+                    label: "Mileage at last oil change (optional)",
+                    context: vehicleMileageSummary,
+                    placeholder: "e.g., 45,000",
+                    text: $oilMileage
+                )
             }
-
         case "tire":
-            questionSection(
-                icon: "tire",
-                iconColor: .gray,
-                title: "Last Tire Rotation",
-                subtitle: "When were your tires last rotated?",
-                options: [
-                    ("within-6m", "Within the last 6 months"),
-                    ("6-12m", "6–12 months ago"),
-                    ("over-1y", "Over a year ago"),
-                    ("with-oil", "Done with my last oil change"),
-                    ("unknown", "Don't know"),
-                ],
-                key: "tire"
-            )
-
+            optionList([
+                ("within-6m", "Within the last 6 months", "Right on schedule"),
+                ("6-12m", "6–12 months ago", "Probably due soon"),
+                ("over-1y", "More than a year ago", "Likely overdue"),
+                ("unknown", "I'm not sure", "We'll keep an eye on it")
+            ], key: "tire")
         case "brake":
-            questionSection(
-                icon: "brake.signal",
-                iconColor: Color.agDestructive,
-                title: "Last Brake Pad Replacement",
-                subtitle: "When were your brake pads last replaced?",
-                options: [
-                    ("within-1y", "Within the last year"),
-                    ("1-2y", "1–2 years ago"),
-                    ("2-3y", "2–3 years ago"),
-                    ("over-3y", "Over 3 years ago / not sure"),
-                ],
-                key: "brake"
-            )
-
-            // Optional mileage
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Estimated mileage at last brake replacement (optional)")
-                    .font(.system(size: 12))
-                    .foregroundStyle(Color.agMutedForeground)
-                TextField("e.g. 38,000", text: $brakeMileage)
-                    .font(.system(size: 16, weight: .medium))
-                    .keyboardType(.numberPad)
-                    .padding(12)
-                    .background(Color.agCard)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .strokeBorder(Color.agBorder, lineWidth: 1)
-                    )
-            }
-
+            optionList([
+                ("within-1y", "Within the last year", "Should be in good shape"),
+                ("1-2y", "1–2 years ago", "Worth inspecting soon"),
+                ("over-2y", "More than 2 years ago", "Overdue for inspection"),
+                ("unknown", "I'm not sure", "We'll flag it")
+            ], key: "brake")
         case "air":
-            questionSection(
-                icon: "air.purifier.fill",
-                iconColor: Color.agSuccess,
-                title: "Engine Air Filter",
-                subtitle: "Has the engine air filter been replaced?",
-                options: [
-                    ("within-2y", "Yes — within the last 2 years"),
-                    ("unknown", "Not that I know of"),
-                    ("at-service", "It came up at my last service"),
-                ],
-                key: "air"
-            )
-
-        case "battery":
-            questionSection(
-                icon: "battery.100percent",
-                iconColor: Color.agAccent,
-                title: "Battery",
-                subtitle: "When was your car battery last replaced?",
-                options: [
-                    ("recent", "Replaced in 2025 or 2026"),
-                    ("2023-2024", "Replaced in 2023 or 2024"),
-                    ("before-2023", "Replaced before 2023"),
-                    ("original", "Original battery / not sure"),
-                ],
-                key: "battery"
-            )
-
+            optionList([
+                ("within-1y", "Within the last year", "Likely still good"),
+                ("1-2y", "1–2 years ago", "Probably due"),
+                ("over-2y", "More than 2 years / never", "Definitely time"),
+                ("unknown", "I'm not sure", "We'll estimate for you")
+            ], key: "air")
+        case "transmission":
+            optionList([
+                ("recent", "Yes, recently", "Likely still good"),
+                ("not-recent", "Yes, but not recently", "May need attention"),
+                ("no", "No / not that I know of", "Worth checking"),
+                ("unknown", "I'm not sure", "We'll factor in mileage")
+            ], key: "transmission")
         default:
             EmptyView()
         }
     }
 
-    private func questionSection(
-        icon: String,
-        iconColor: Color,
-        title: String,
-        subtitle: String,
-        options: [(id: String, label: String)],
-        key: String
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Title with icon
-            HStack(spacing: 10) {
-                Image(systemName: icon)
-                    .font(.system(size: 20))
-                    .foregroundStyle(iconColor)
-                    .frame(width: 40, height: 40)
-                    .background(iconColor.opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
+    // MARK: - Reusable bits
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundStyle(Color.agForeground)
-                    Text(subtitle)
-                        .font(.system(size: 13))
-                        .foregroundStyle(Color.agMutedForeground)
-                }
-            }
-
-            // Options
-            VStack(spacing: 6) {
-                ForEach(options, id: \.id) { option in
-                    let selected = answers[key] == option.id
-                    Button {
-                        answers[key] = option.id
-                    } label: {
-                        HStack {
-                            Text(option.label)
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundStyle(Color.agForeground)
-                            Spacer()
-                            if selected {
-                                Image(systemName: "checkmark")
-                                    .font(.system(size: 14, weight: .semibold))
-                                    .foregroundStyle(Color.agPrimary)
-                            }
-                        }
-                        .padding(12)
-                        .background(selected ? Color.agPrimary.opacity(0.1) : Color.agMuted.opacity(0.5))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .strokeBorder(selected ? Color.agPrimary.opacity(0.3) : Color.clear, lineWidth: 1)
-                        )
+    private func triStateRow(key: String, options: [(id: String, label: String)]) -> some View {
+        HStack(spacing: 10) {
+            ForEach(options, id: \.id) { opt in
+                let selected = answers[key] == opt.id
+                Button {
+                    answers[key] = opt.id
+                    if key == "oil" && opt.id != "yes" {
+                        answers["oilRecency"] = nil
                     }
-                    .buttonStyle(ScaleButtonStyle())
+                } label: {
+                    Text(opt.label)
+                        .font(Font.custom("Quicksand", size: 14).weight(.medium))
+                        .foregroundStyle(selected ? Color(red: 0.83, green: 0.64, blue: 0.45) : Color(red: 0.23, green: 0.23, blue: 0.23))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 49)
+                        .background(selected ? Color(red: 0.83, green: 0.64, blue: 0.45).opacity(0.1) : Color.white)
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14)
+                                .strokeBorder(selected ? Color(red: 0.83, green: 0.64, blue: 0.45).opacity(0.3) : Color.black.opacity(0.1), lineWidth: 0.5)
+                        )
                 }
+                .buttonStyle(ScaleButtonStyle())
+            }
+        }
+        .shadow(color: .black.opacity(0.21), radius: 3, x: 0, y: 2)
+    }
+
+    private func optionList(_ options: [(id: String, title: String, subtitle: String)],
+                            key: String) -> some View {
+        VStack(spacing: 10) {
+            ForEach(options, id: \.id) { opt in
+                let selected = answers[key] == opt.id
+                Button {
+                    answers[key] = opt.id
+                } label: {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(opt.title)
+                                .font(Font.custom("Quicksand", size: 14).weight(.medium))
+                                .foregroundStyle(Color(red: 0.23, green: 0.23, blue: 0.23))
+                            Text(opt.subtitle)
+                                .font(Font.custom("Quicksand", size: 12).weight(.medium))
+                                .foregroundStyle(Color(red: 0.42, green: 0.42, blue: 0.42))
+                        }
+                        Spacer()
+                        if selected {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(Color.agPrimary)
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .frame(minHeight: 67)
+                    .background(selected ? Color(red: 0.83, green: 0.64, blue: 0.45).opacity(0.08) : Color.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14)
+                            .strokeBorder(selected ? Color(red: 0.83, green: 0.64, blue: 0.45).opacity(0.4) : Color.black.opacity(0.2), lineWidth: 0.5)
+                    )
+                }
+                .buttonStyle(ScaleButtonStyle())
             }
         }
     }
 
-    // MARK: - Navigation
+    private func sectionHeader(_ text: String) -> some View {
+        Text(text)
+            .font(Font.custom("Quicksand", size: 13))
+            .tracking(0.3)
+            .foregroundStyle(Color(red: 0.45, green: 0.45, blue: 0.45))
+            .textCase(.none)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var vehicleMileageSummary: String {
+        "\(vehicle.displayName) • \(vehicle.mileage.formatted()) miles"
+    }
+
+    private func mileageInputField(
+        label: String,
+        context: String? = nil,
+        placeholder: String,
+        text: Binding<String>
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(label)
+                .font(Font.custom("Quicksand", size: 14).weight(.medium))
+                .foregroundStyle(Color(red: 0.23, green: 0.23, blue: 0.23))
+            if let context {
+                Text(context)
+                    .font(Font.custom("Quicksand", size: 11))
+                    .underline()
+                    .foregroundStyle(Color(red: 0.42, green: 0.42, blue: 0.42))
+            }
+            TextField(placeholder, text: text)
+                .onChange(of: text.wrappedValue) { _, newValue in
+                    let digits = newValue.filter(\.isNumber)
+                    let formatted = formatMileageInput(digits)
+                    if formatted != newValue {
+                        text.wrappedValue = formatted
+                    }
+                }
+                .font(Font.custom("Quicksand", size: 16))
+                .keyboardType(.numberPad)
+                .padding(.horizontal, 16)
+                .frame(height: 49)
+                .background(Color.white)
+                .clipShape(RoundedRectangle(cornerRadius: 14))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14)
+                        .strokeBorder(Color.black.opacity(0.2), lineWidth: 0.5)
+                )
+        }
+    }
+
+    private func formatMileageInput(_ digits: String) -> String {
+        guard let value = Int(digits), !digits.isEmpty else { return "" }
+        return value.formatted()
+    }
+
+    // MARK: - Bottom CTA
+
+    private var bottomCTA: some View {
+        VStack(spacing: 0) {
+            Divider().background(Color.agBorder)
+            Button {
+                advance()
+            } label: {
+                HStack(spacing: 8) {
+                    Text(currentScreen == screens.count - 1 ? "See my service plan" : "Continue")
+                        .font(Font.custom("Quicksand", size: 14).weight(.medium))
+                        .lineSpacing(20)
+                        .foregroundStyle(.black)
+                }
+                .padding(.vertical, 8)
+                .padding(.horizontal, 32)
+                .frame(maxWidth: .infinity)
+                .frame(height: 44)
+                .background(
+                    RoundedRectangle(cornerRadius: 5)
+                        .fill(Color(red: 0.83, green: 0.64, blue: 0.45))
+                        .shadow(color: .black, radius: 0, x: 4, y: 4)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 5)
+                        .strokeBorder(Color.black, lineWidth: 1)
+                )
+            }
+            .buttonStyle(ScaleButtonStyle())
+            .disabled(!canAdvance || isAnalyzing)
+            .opacity(canAdvance && !isAnalyzing ? 1 : 0.3)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 16)
+        }
+        .background(Color.white.opacity(0.95))
+    }
+
+    private var canAdvance: Bool {
+        guard !isAnalyzing else { return false }
+        let screen = screens[currentScreen]
+        if screen == "oil", answers["oil"] == "yes" {
+            return answers["oilRecency"] != nil
+        }
+        return answers[screen] != nil
+    }
+
+    // MARK: - Navigation + analyzing
 
     private func advance() {
+        guard !isAnalyzing else { return }
         if currentScreen < screens.count - 1 {
-            withAnimation(.spring(duration: 0.2)) { currentScreen += 1 }
+            navigationDirection = 1
+            withAnimation(questionAnimation) { currentScreen += 1 }
         } else {
             finishSetup()
         }
@@ -358,17 +636,40 @@ struct PostVehicleServiceSetupFlow: View {
         advance()
     }
 
-    private func finishSetup() {
-        let entries = buildBaselineEntries()
-        isAnalyzing = true
+    private var analyzingOverlay: some View {
+        ZStack {
+            Color.agBackground.opacity(0.95).ignoresSafeArea()
+            VStack(spacing: 12) {
+                LottieView(animation: .named("carr"))
+                    .playing(loopMode: .loop)
+                    .frame(width: 220, height: 220)
+                VStack(spacing: 10) {
+                    Text("Analyzing your vehicle's\nmaintenance needs...")
+                        .font(.quicksand(.semibold, size: 16))
+                        .foregroundStyle(Color.agForeground)
+                        .multilineTextAlignment(.center)
+                    Text("This takes a few seconds")
+                        .font(.quicksand(.regular, size: 13))
+                        .foregroundStyle(Color.agMutedForeground)
+                }
+                .padding(.top, -28)
+            }
+        }
+    }
 
+    private func finishSetup() {
+        guard !isAnalyzing else { return }
+        let entries = buildBaselineEntries()
+        let submittedAnswers = answers
+        let submittedOilMileage = oilMileage
+        isAnalyzing = true
         Task {
             do {
                 let result = try await AIMaintenanceAnalyzer.analyze(
                     vehicle: vehicle,
-                    answers: answers,
-                    oilMileage: oilMileage,
-                    brakeMileage: brakeMileage
+                    answers: submittedAnswers,
+                    oilMileage: submittedOilMileage,
+                    brakeMileage: ""
                 )
                 await MainActor.run {
                     appState.storeBaselineServiceLogsWithAI(
@@ -382,7 +683,6 @@ struct PostVehicleServiceSetupFlow: View {
                     onFinish()
                 }
             } catch {
-                print("🔧 [AIAnalyzer] ❌ Failed: \(error.localizedDescription) — using fallback")
                 await MainActor.run {
                     appState.storeBaselineServiceLogs(entries, for: vehicle.id)
                     isAnalyzing = false
@@ -392,19 +692,17 @@ struct PostVehicleServiceSetupFlow: View {
         }
     }
 
-    // MARK: - Build Baseline Entries
+    // MARK: - Build baseline entries
 
     private func buildBaselineEntries() -> [ServiceLog] {
         let now = Date()
         let currentMileage = vehicle.mileage
-        // Estimate annual mileage (default 12,000)
         let annualMiles = estimateAnnualMiles()
-
         var entries: [ServiceLog] = []
 
-        // Oil Change
-        let oilAnswer = answers["oil"] ?? "unknown"
-        let oilDate = estimateDate(answer: oilAnswer, mapping: [
+        // Oil — recency depends on tri-state + detailed recency bucket
+        let oilRecency = answers["oilRecency"] ?? (answers["oil"] == "no" ? "over-1y" : "unknown")
+        let oilDate = estimateDate(answer: oilRecency, mapping: [
             "within-3m": -2, "3-6m": -5, "6-12m": -9, "over-1y": -15
         ], from: now)
         let oilMiles: Int
@@ -419,20 +717,15 @@ struct PostVehicleServiceSetupFlow: View {
             name: "[Baseline] Oil Change",
             date: oilDate, mileage: oilMiles, cost: 0,
             shop: "AutoGuard Baseline",
-            notes: oilAnswer == "unknown" ? "Status: unknown" : "Status: known",
+            notes: answers["oil"] == "unsure" ? "Status: unknown" : "Status: known",
             category: .oil
         ))
 
-        // Tire Rotation
+        // Tire rotation
         let tireAnswer = answers["tire"] ?? "unknown"
-        let tireDate: Date
-        if tireAnswer == "with-oil" {
-            tireDate = oilDate
-        } else {
-            tireDate = estimateDate(answer: tireAnswer, mapping: [
-                "within-6m": -3, "6-12m": -9, "over-1y": -15
-            ], from: now)
-        }
+        let tireDate = estimateDate(answer: tireAnswer, mapping: [
+            "within-6m": -3, "6-12m": -9, "over-1y": -15
+        ], from: now)
         let tireMonthsAgo = Calendar.current.dateComponents([.month], from: tireDate, to: now).month ?? 0
         let tireMiles = max(1000, currentMileage - (annualMiles * tireMonthsAgo / 12))
         entries.append(ServiceLog(
@@ -444,57 +737,52 @@ struct PostVehicleServiceSetupFlow: View {
             category: .tires
         ))
 
-        // Brake Pads
+        // Brakes
         let brakeAnswer = answers["brake"] ?? "unknown"
         let brakeDate = estimateDate(answer: brakeAnswer, mapping: [
-            "within-1y": -6, "1-2y": -18, "2-3y": -30, "over-3y": -42
+            "within-1y": -6, "1-2y": -18, "over-2y": -30
         ], from: now)
-        let brakeMiles: Int
-        if let parsed = Int(brakeMileage.replacingOccurrences(of: ",", with: "")), parsed > 0 {
-            brakeMiles = parsed
-        } else {
-            let monthsAgo = Calendar.current.dateComponents([.month], from: brakeDate, to: now).month ?? 0
-            brakeMiles = max(1000, currentMileage - (annualMiles * monthsAgo / 12))
-        }
+        let brakeMonthsAgo = Calendar.current.dateComponents([.month], from: brakeDate, to: now).month ?? 0
+        let brakeMiles = max(1000, currentMileage - (annualMiles * brakeMonthsAgo / 12))
         entries.append(ServiceLog(
             id: UUID(), vehicleId: vehicle.id,
-            name: "[Baseline] Brake Pads",
+            name: "[Baseline] Brake Service",
             date: brakeDate, mileage: brakeMiles, cost: 0,
             shop: "AutoGuard Baseline",
-            notes: brakeAnswer == "over-3y" ? "Status: unknown" : "Status: known",
+            notes: brakeAnswer == "unknown" ? "Status: unknown" : "Status: known",
             category: .brakes
         ))
 
-        // Air Filter
+        // Air filter
         let airAnswer = answers["air"] ?? "unknown"
         let airDate = estimateDate(answer: airAnswer, mapping: [
-            "within-2y": -12, "at-service": -6
+            "within-1y": -6, "1-2y": -18, "over-2y": -30
         ], from: now)
         let airMonthsAgo = Calendar.current.dateComponents([.month], from: airDate, to: now).month ?? 0
         let airMiles = max(1000, currentMileage - (annualMiles * airMonthsAgo / 12))
         entries.append(ServiceLog(
             id: UUID(), vehicleId: vehicle.id,
-            name: "[Baseline] Engine Air Filter",
+            name: "[Baseline] Air Filter",
             date: airDate, mileage: airMiles, cost: 0,
             shop: "AutoGuard Baseline",
             notes: airAnswer == "unknown" ? "Status: unknown" : "Status: known",
             category: .filters
         ))
 
-        // Battery
-        let batteryAnswer = answers["battery"] ?? "unknown"
-        let batteryDate = estimateDate(answer: batteryAnswer, mapping: [
-            "recent": -6, "2023-2024": -24, "before-2023": -42
+        // Transmission
+        let transAnswer = answers["transmission"] ?? "unknown"
+        let transDate = estimateDate(answer: transAnswer, mapping: [
+            "recent": -6, "not-recent": -36, "no": -60
         ], from: now)
-        let batteryMonthsAgo = Calendar.current.dateComponents([.month], from: batteryDate, to: now).month ?? 0
-        let batteryMiles = max(1000, currentMileage - (annualMiles * batteryMonthsAgo / 12))
+        let transMonthsAgo = Calendar.current.dateComponents([.month], from: transDate, to: now).month ?? 0
+        let transMiles = max(1000, currentMileage - (annualMiles * transMonthsAgo / 12))
         entries.append(ServiceLog(
             id: UUID(), vehicleId: vehicle.id,
-            name: "[Baseline] Battery",
-            date: batteryDate, mileage: batteryMiles, cost: 0,
+            name: "[Baseline] Transmission Fluid",
+            date: transDate, mileage: transMiles, cost: 0,
             shop: "AutoGuard Baseline",
-            notes: batteryAnswer == "original" ? "Status: unknown" : "Status: known",
-            category: .battery
+            notes: transAnswer == "unknown" ? "Status: unknown" : "Status: known",
+            category: .transmission
         ))
 
         return entries
@@ -502,11 +790,11 @@ struct PostVehicleServiceSetupFlow: View {
 
     private func estimateAnnualMiles() -> Int {
         switch vehicle.annualMileage {
-        case "under-5k": return 4000
-        case "5k-10k": return 7500
-        case "10k-15k": return 12500
+        case "under-5k", "under-7500": return 5000
+        case "5k-10k", "7500-15000": return 11000
+        case "10k-15k", "15000-25000": return 20000
         case "15k-20k": return 17500
-        case "over-20k": return 25000
+        case "over-20k", "over-25000": return 28000
         default: return 12000
         }
     }
@@ -520,11 +808,11 @@ struct PostVehicleServiceSetupFlow: View {
 #Preview {
     PostVehicleServiceSetupFlow(
         vehicle: Vehicle(
-            id: UUID(), year: 2019, make: "Honda", model: "CR-V",
-            trim: "EX-L", mileage: 47230, color: "White", vin: nil,
+            id: UUID(), year: 2026, make: "Audi", model: "A4",
+            trim: nil, mileage: 47230, color: "White", vin: nil,
             healthScore: 85, lastService: nil, nextService: nil,
             maintenanceCurrent: 0, maintenanceTotal: 0,
-            usage: ["Daily commute"], conditions: ["City driving"],
+            usage: ["Daily commute"], conditions: ["City traffic"],
             annualMileage: "10k-15k"
         ),
         onFinish: {}

@@ -1,0 +1,46 @@
+appId: steve.kurien.claude-automate
+---
+# Env: SCREENSHOT_PATH
+# After setup, the vehicle card appears with a "View service plan" link.
+- extendedWaitUntil:
+    visible: "View service plan"
+    timeout: 60000
+- tapOn:
+    text: "View service plan"
+
+# Perplexity OEM lookup can take 10–30s on cold cache.
+- extendedWaitUntil:
+    visible: "Service Logbook"
+    timeout: 90000
+- waitForAnimationToEnd:
+    timeout: 3000
+
+# Screenshot 1: top of the timeline (overview).
+- takeScreenshot: ${SCREENSHOT_PATH}
+
+# Screenshot 2: scroll mid-way to capture more milestones.
+- swipe:
+    start: "60%,73%"
+    end: "64%,51%"
+    duration: 1117
+- waitForAnimationToEnd:
+    timeout: 1000
+- takeScreenshot: ${SCREENSHOT_PATH}_scroll1.png
+
+# Screenshot 3: scroll further to capture the remainder.
+- swipe:
+    start: "58%,69%"
+    end: "59%,50%"
+    duration: 930
+- waitForAnimationToEnd:
+    timeout: 1000
+- takeScreenshot: ${SCREENSHOT_PATH}_scroll2.png
+
+# Screenshot 4: final scroll pass.
+- swipe:
+    start: "57%,72%"
+    end: "59%,43%"
+    duration: 496
+- waitForAnimationToEnd:
+    timeout: 1000
+- takeScreenshot: ${SCREENSHOT_PATH}_scroll3.png

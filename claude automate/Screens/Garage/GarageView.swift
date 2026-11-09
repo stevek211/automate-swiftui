@@ -1,47 +1,90 @@
 import SwiftUI
+import Supabase
 
 struct GarageView: View {
     @Environment(AppState.self) private var appState
+    @State private var vehicleToDelete: Vehicle? = nil
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                // Header
-                HStack {
-                    Text("My Garage")
-                        .font(.system(size: 20, weight: .bold))
-                        .foregroundStyle(Color.agForeground)
-                    Spacer()
-                    Button { appState.showAddVehicle = true } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: "plus")
-                                .font(.system(size: 12, weight: .semibold))
-                            Text("Add Vehicle")
-                                .font(.system(size: 12, weight: .semibold))
-                        }
-                        .foregroundStyle(Color.agPrimary)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Color.agPrimary10)
-                        .clipShape(Capsule())
+        VStack(alignment: .leading, spacing: 0) {
+            // Header
+            HStack {
+                Text("My Garage")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundStyle(Color.agForeground)
+                Spacer()
+                Button { appState.showAddVehicle = true } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "plus")
+                            .font(.system(size: 12, weight: .semibold))
+                        Text("Add Vehicle")
+                            .font(.system(size: 12, weight: .semibold))
                     }
-                    .buttonStyle(ScaleButtonStyle())
+                    .foregroundStyle(Color.agPrimary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color.agPrimary10)
+                    .clipShape(Capsule())
                 }
-
-                // Vehicle Cards — or empty state
-                if appState.vehicles.isEmpty {
-                    garageEmptyState
-                } else {
-                    ForEach(appState.vehicles) { vehicle in
-                        GarageVehicleCard(vehicle: vehicle)
-                    }
-                }
+                .buttonStyle(ScaleButtonStyle())
             }
             .padding(.horizontal, 16)
             .padding(.top, 24)
             .padding(.bottom, 16)
+
+            // Vehicle Cards — or empty state
+            if appState.vehicles.isEmpty {
+                ScrollView {
+                    garageEmptyState
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 16)
+                }
+            } else {
+                List {
+                    ForEach(appState.vehicles) { vehicle in
+                        GarageVehicleCard(vehicle: vehicle)
+                            .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 8, trailing: 16))
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button(role: .destructive) {
+                                    vehicleToDelete = vehicle
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
+                    }
+                }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
+                .padding(.bottom, 16)
+            }
         }
         .background(Color.agBackground)
+        .alert(
+            "Delete \(vehicleToDelete?.fullDisplayName ?? "Vehicle")?",
+            isPresented: Binding(
+                get: { vehicleToDelete != nil },
+                set: { if !$0 { vehicleToDelete = nil } }
+            )
+        ) {
+            Button("Delete", role: .destructive) {
+                if let vehicle = vehicleToDelete {
+                    confirmDelete(vehicle)
+                }
+            }
+            Button("Cancel", role: .cancel) {
+                vehicleToDelete = nil
+            }
+        } message: {
+            Text("This will permanently remove the vehicle and all its service history.")
+        }
+    }
+
+    private func confirmDelete(_ vehicle: Vehicle) {
+        vehicleToDelete = nil
+        appState.removeVehicle(vehicle)
+        Task { await SupabaseManager.softDeleteVehicle(id: vehicle.id) }
     }
 
     // MARK: - Empty State

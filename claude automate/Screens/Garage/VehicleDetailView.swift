@@ -5,6 +5,7 @@ struct VehicleDetailView: View {
     let vehicle: Vehicle
 
     @State private var selectedTab = 0
+    @State private var showServicePlan = false
     private let tabs = ["Overview", "Maintenance"]
 
     var body: some View {
@@ -167,11 +168,19 @@ struct VehicleDetailView: View {
             figmaActionButton(icon: "calendar.badge.clock", label: "Schedule") {
                 // schedule action
             }
-            figmaActionButton(icon: "phone", label: "Call Shop") {
-                // call shop action
+            figmaActionButton(icon: "list.bullet.clipboard", label: "Service Plan") {
+                showServicePlan = true
             }
             figmaActionButton(icon: "brain.head.profile", label: "Ask AI") {
                 appState.selectedTab = .diagnose
+            }
+        }
+        .fullScreenCover(isPresented: $showServicePlan) {
+            NavigationStack {
+                let items = appState.oemSchedule(for: vehicle.id) ?? ServicePlanBuilder.demoItems
+                let sources = appState.oemSources(for: vehicle.id)
+                let logs = appState.serviceLogs(for: vehicle.id)
+                ServicePlanView(vehicle: vehicle, oemItems: items, sources: sources, serviceLogs: logs, serviceLogCount: logs.count)
             }
         }
     }

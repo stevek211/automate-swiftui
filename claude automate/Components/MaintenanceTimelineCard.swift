@@ -17,7 +17,7 @@ struct MaintenanceTimelineCard: View {
             VStack(alignment: .leading, spacing: AGSpacing.xs) {
                 HStack {
                     Text(item.name)
-                        .font(.jakartaHeadline)
+                        .font(.poppinsHeadline)
                         .foregroundStyle(Color.agForeground)
 
                     Spacer()
@@ -26,27 +26,27 @@ struct MaintenanceTimelineCard: View {
                 }
 
                 Text(item.description)
-                    .font(.jakartaCaption)
+                    .font(.poppinsCaption)
                     .foregroundStyle(Color.agMutedForeground)
                     .lineLimit(1)
 
                 HStack(spacing: AGSpacing.lg) {
                     if let dueDate = item.dueDate {
                         Label(dueDate.formatted(.dateTime.month(.abbreviated).day()), systemImage: "calendar")
-                            .font(.jakartaCaption)
+                            .font(.poppinsCaption)
                             .foregroundStyle(Color.agMutedForeground)
                     }
 
                     if let dueMileage = item.dueMileage {
                         Label("\(dueMileage.formatted()) mi", systemImage: "speedometer")
-                            .font(.jakartaCaption)
+                            .font(.poppinsCaption)
                             .foregroundStyle(Color.agMutedForeground)
                     }
 
                     Spacer()
 
                     Text(item.estimatedCostDisplay)
-                        .font(.jakartaCaption)
+                        .font(.poppinsCaption)
                         .foregroundStyle(Color.agMutedForeground)
                 }
             }
@@ -63,7 +63,7 @@ struct StatusBadge: View {
 
     var body: some View {
         Text(status.rawValue)
-            .font(.jakartaCaption2)
+            .font(.poppinsCaption2)
             .foregroundStyle(Color.statusColor(status))
             .padding(.horizontal, AGSpacing.sm)
             .padding(.vertical, AGSpacing.xs)

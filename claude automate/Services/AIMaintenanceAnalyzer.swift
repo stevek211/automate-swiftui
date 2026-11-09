@@ -41,9 +41,9 @@ enum AIMaintenanceAnalyzer {
     }
 
     private struct OEMVehicleInfo: Codable {
-        let year: Int
-        let make: String
-        let model: String
+        let year: Int?
+        let make: String?
+        let model: String?
         let trim: String?
         let engine: String?
     }
@@ -51,10 +51,12 @@ enum AIMaintenanceAnalyzer {
     // NOTE: Schema bumped — old cached schedules at {Documents}/oem_schedules/*.json
     // will fail to decode (handled silently by `try?` in loadCachedSchedule) and
     // be refetched on next analysis.
+    // Only `maintenance_items` is truly required for Phase 2; the rest are optional
+    // so a partial Perplexity response still parses.
     private struct OEMScheduleResponse: Codable {
-        let vehicle: OEMVehicleInfo
-        let sources: [OEMSource]
-        let base_interval: OEMBaseInterval
+        let vehicle: OEMVehicleInfo?
+        let sources: [OEMSource]?
+        let base_interval: OEMBaseInterval?
         let maintenance_items: [OEMMaintenanceItem]
         let footnotes: [String]?
     }
@@ -68,7 +70,38 @@ enum AIMaintenanceAnalyzer {
             }
             let message: Message
         }
+        struct SearchResult: Decodable {
+            let title: String?
+            let url: String
+        }
         let choices: [Choice]
+        /// URLs Perplexity actually searched (top-level, outside the message).
+        let citations: [String]?
+        /// Richer form of `citations` with page titles, when returned.
+        let search_results: [SearchResult]?
+    }
+
+    /// The model's answer plus the web pages Perplexity grounded it on.
+    private struct PerplexityReply {
+        let content: String
+        let citations: [OEMSource]
+    }
+
+    /// Converts Perplexity's top-level citations into footer sources. Used when
+    /// the model omits the `sources` array from its JSON, so the Service Plan
+    /// can still show where the schedule came from.
+    private static func sourcesFromCitations(_ completion: ChatCompletionResponse) -> [OEMSource] {
+        var seen = Set<String>()
+        var result: [OEMSource] = []
+        let pairs: [(String?, String)] = completion.search_results?.map { ($0.title, $0.url) }
+            ?? (completion.citations ?? []).map { (nil, $0) }
+        for (title, url) in pairs where seen.insert(url).inserted {
+            let host = URL(string: url)?.host?.replacingOccurrences(of: "www.", with: "")
+            let trimmed = title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let name = !trimmed.isEmpty ? trimmed : (host ?? url)
+            result.append(OEMSource(type: "web", name: name, url: url))
+        }
+        return result
     }
 
     // MARK: - Cache
@@ -102,6 +135,12 @@ enum AIMaintenanceAnalyzer {
             print("🔧 [AIAnalyzer] Cache expired for \(key)")
             return nil
         }
+        // Schedules cached before sources were captured can't show provenance;
+        // refetch so the Service Plan footer can link to where it came from.
+        guard !(cached.schedule.sources ?? []).isEmpty else {
+            print("🔧 [AIAnalyzer] Cached schedule for \(key) has no sources — refetching")
+            return nil
+        }
         print("🔧 [AIAnalyzer] Cache hit for \(key)")
         return cached.schedule
     }
@@ -114,6 +153,21 @@ enum AIMaintenanceAnalyzer {
             try? data.write(to: fileURL)
             print("🔧 [AIAnalyzer] Cached schedule for \(key)")
         }
+    }
+
+    // MARK: - Debug
+
+    static func clearCache() -> Int {
+        let fm = FileManager.default
+        guard let files = try? fm.contentsOfDirectory(at: cacheDirectory, includingPropertiesForKeys: nil) else {
+            return 0
+        }
+        var count = 0
+        for file in files where file.pathExtension == "json" {
+            if (try? fm.removeItem(at: file)) != nil { count += 1 }
+        }
+        print("🔧 [AIAnalyzer] Cleared \(count) cached OEM schedule(s)")
+        return count
     }
 
     // MARK: - Public API
@@ -156,7 +210,7 @@ enum AIMaintenanceAnalyzer {
         }
 
         print("🔧 [AIAnalyzer] OEM schedule has \(oemSchedule.maintenance_items.count) items")
-        print("🔧 [AIAnalyzer] Sources: \(oemSchedule.sources.map { $0.name }.joined(separator: ", "))")
+        print("🔧 [AIAnalyzer] Sources: \((oemSchedule.sources ?? []).map { $0.name }.joined(separator: ", "))")
 
         // Phase 2: Deterministic local personalization (no API call)
         print("🔧 [AIAnalyzer] Phase 2: Personalizing locally with deterministic math...")
@@ -174,7 +228,7 @@ enum AIMaintenanceAnalyzer {
         }
 
         let schedule = oemSchedule.maintenance_items.map(oemItemToScheduleInput)
-        let sources = oemSchedule.sources.map {
+        let sources = (oemSchedule.sources ?? []).map {
             OEMScheduleSource(type: $0.type, name: $0.name, url: $0.url)
         }
         return AnalyzerResult(items: items, schedule: schedule, sources: sources)
@@ -193,7 +247,8 @@ enum AIMaintenanceAnalyzer {
             "max_tokens": 4096
         ]
 
-        let content = try await callPerplexityAPI(body: requestBody, timeout: 90)
+        let reply = try await callPerplexityAPI(body: requestBody, timeout: 90)
+        let content = reply.content
         let jsonString = extractJSON(from: content)
 
         guard let jsonData = jsonString.data(using: .utf8) else {
@@ -206,12 +261,93 @@ enum AIMaintenanceAnalyzer {
             throw AnalyzerError.invalidResponse
         }
 
-        let schedule = try JSONDecoder().decode(OEMScheduleResponse.self, from: jsonData)
+        let schedule: OEMScheduleResponse
+        do {
+            schedule = try JSONDecoder().decode(OEMScheduleResponse.self, from: jsonData)
+        } catch let DecodingError.keyNotFound(key, context) {
+            let path = context.codingPath.map { $0.stringValue }.joined(separator: ".")
+            let fullPath = path.isEmpty ? key.stringValue : "\(path).\(key.stringValue)"
+            print("🔧 [AIAnalyzer] ❌ DECODE FAILED — missing key '\(key.stringValue)' at \(fullPath)")
+            print("    debug: \(context.debugDescription)")
+            print("    JSON snippet: \(jsonString.prefix(500))")
+            AnalyticsService.shared.track(.oemScheduleDecodeFailed(
+                errorType: "keyNotFound",
+                path: fullPath,
+                details: context.debugDescription,
+                vehicleKey: vehicleKey(for: vehicle),
+                jsonSample: String(jsonString.prefix(500))
+            ))
+            throw AnalyzerError.invalidResponse
+        } catch let DecodingError.typeMismatch(type, context) {
+            let path = context.codingPath.map { $0.stringValue }.joined(separator: ".")
+            print("🔧 [AIAnalyzer] ❌ DECODE FAILED — type mismatch, expected \(type) at \(path)")
+            print("    debug: \(context.debugDescription)")
+            print("    JSON snippet: \(jsonString.prefix(500))")
+            AnalyticsService.shared.track(.oemScheduleDecodeFailed(
+                errorType: "typeMismatch",
+                path: path,
+                details: "expected \(type): \(context.debugDescription)",
+                vehicleKey: vehicleKey(for: vehicle),
+                jsonSample: String(jsonString.prefix(500))
+            ))
+            throw AnalyzerError.invalidResponse
+        } catch let DecodingError.valueNotFound(type, context) {
+            let path = context.codingPath.map { $0.stringValue }.joined(separator: ".")
+            print("🔧 [AIAnalyzer] ❌ DECODE FAILED — null where \(type) expected at \(path)")
+            print("    debug: \(context.debugDescription)")
+            print("    JSON snippet: \(jsonString.prefix(500))")
+            AnalyticsService.shared.track(.oemScheduleDecodeFailed(
+                errorType: "valueNotFound",
+                path: path,
+                details: "expected \(type): \(context.debugDescription)",
+                vehicleKey: vehicleKey(for: vehicle),
+                jsonSample: String(jsonString.prefix(500))
+            ))
+            throw AnalyzerError.invalidResponse
+        } catch let DecodingError.dataCorrupted(context) {
+            let path = context.codingPath.map { $0.stringValue }.joined(separator: ".")
+            print("🔧 [AIAnalyzer] ❌ DECODE FAILED — data corrupted at \(path)")
+            print("    debug: \(context.debugDescription)")
+            print("    JSON snippet (first 1000 chars):")
+            print(String(jsonString.prefix(1000)))
+            AnalyticsService.shared.track(.oemScheduleDecodeFailed(
+                errorType: "dataCorrupted",
+                path: path,
+                details: context.debugDescription,
+                vehicleKey: vehicleKey(for: vehicle),
+                jsonSample: String(jsonString.prefix(500))
+            ))
+            throw AnalyzerError.invalidResponse
+        } catch {
+            print("🔧 [AIAnalyzer] ❌ DECODE FAILED — \(error.localizedDescription)")
+            print("    error: \(error)")
+            print("    JSON snippet: \(jsonString.prefix(500))")
+            AnalyticsService.shared.track(.oemScheduleDecodeFailed(
+                errorType: "unknown",
+                path: "",
+                details: String(describing: error),
+                vehicleKey: vehicleKey(for: vehicle),
+                jsonSample: String(jsonString.prefix(500))
+            ))
+            throw AnalyzerError.invalidResponse
+        }
 
         // Don't accept empty results — treat as a failure so we don't cache garbage
         guard !schedule.maintenance_items.isEmpty else {
             print("🔧 [AIAnalyzer] ⚠️ Perplexity returned 0 maintenance items — treating as failure")
             throw AnalyzerError.invalidResponse
+        }
+
+        // Fall back to Perplexity's own citations when the model left `sources` out.
+        if (schedule.sources ?? []).isEmpty, !reply.citations.isEmpty {
+            print("🔧 [AIAnalyzer] Model omitted sources — using \(reply.citations.count) Perplexity citations")
+            return OEMScheduleResponse(
+                vehicle: schedule.vehicle,
+                sources: reply.citations,
+                base_interval: schedule.base_interval,
+                maintenance_items: schedule.maintenance_items,
+                footnotes: schedule.footnotes
+            )
         }
 
         return schedule
@@ -234,11 +370,12 @@ enum AIMaintenanceAnalyzer {
 
         // Map category → (answer key, last service mileage if available)
         let categoryToHistory: [String: (answerKey: String, lastMileage: Int?)] = [
-            "oil": ("oil", lastOilMileage),
+            "oil": ("oilRecency", lastOilMileage),
             "tires": ("tire", nil),
             "brakes": ("brake", lastBrakeMileage),
             "filters": ("air", nil),
             "battery": ("battery", nil),
+            "transmission": ("transmission", nil),
         ]
 
         // Use severe intervals if applicable
@@ -343,13 +480,15 @@ enum AIMaintenanceAnalyzer {
         // Brake buckets
         case "within-1y": monthsSinceService = 6
         case "1-2y": monthsSinceService = 18
-        case "2-3y": monthsSinceService = 30
+        case "2-3y", "over-2y": monthsSinceService = 30
         case "over-3y": monthsSinceService = 42
         // Air filter buckets
         case "within-2y": monthsSinceService = 12
         case "at-service": monthsSinceService = 6
         // Battery buckets
         case "recent": monthsSinceService = 6
+        case "not-recent": monthsSinceService = 36
+        case "no": monthsSinceService = 60
         case "2023-2024": monthsSinceService = 24
         case "before-2023": monthsSinceService = 36
         case "original": monthsSinceService = 60
@@ -396,7 +535,7 @@ enum AIMaintenanceAnalyzer {
 
     // MARK: - Perplexity API Call (OpenAI-compatible)
 
-    private static func callPerplexityAPI(body: [String: Any], timeout: TimeInterval) async throws -> String {
+    private static func callPerplexityAPI(body: [String: Any], timeout: TimeInterval) async throws -> PerplexityReply {
         var request = URLRequest(url: endpoint)
         request.httpMethod = "POST"
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
@@ -405,7 +544,9 @@ enum AIMaintenanceAnalyzer {
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
         print("🔧 [AIAnalyzer] Calling Perplexity API...")
+        let callStart = Date()
         let (data, response) = try await URLSession.shared.data(for: request)
+        let durationMs = Int(Date().timeIntervalSince(callStart) * 1000)
 
         let httpResponse = response as? HTTPURLResponse
         print("🔧 [AIAnalyzer] Response status: \(httpResponse?.statusCode ?? -1)")
@@ -418,20 +559,24 @@ enum AIMaintenanceAnalyzer {
         }
 
         if let statusCode = httpResponse?.statusCode, statusCode != 200 {
+            AnalyticsService.shared.track(.perplexityCallFailed(reason: "HTTP \(statusCode)"))
             throw AnalyzerError.apiError
         }
 
         let completion = try JSONDecoder().decode(ChatCompletionResponse.self, from: data)
         guard let content = completion.choices.first?.message.content else {
             print("🔧 [AIAnalyzer] No content in response")
+            AnalyticsService.shared.track(.perplexityCallFailed(reason: "no content in response"))
             throw AnalyzerError.invalidResponse
         }
+
+        AnalyticsService.shared.track(.perplexityCallSucceeded(durationMs: durationMs))
 
         // Log the extracted content (the actual AI answer)
         print("🔧 [AIAnalyzer] ═══════════ EXTRACTED CONTENT ═══════════")
         print(content)
         print("🔧 [AIAnalyzer] ═══════════ END CONTENT ═══════════")
-        return content
+        return PerplexityReply(content: content, citations: sourcesFromCitations(completion))
     }
 
     /// Extracts JSON object from a string that may contain markdown, code fences, or surrounding text.
@@ -527,6 +672,7 @@ enum AIMaintenanceAnalyzer {
         - Do NOT include cost estimates or DIY difficulty
         - Do NOT include administrative items like "Reset Maintenance Reminder" or "Inspect Floor
           Mat Installation"
+        - Do NOT include windshield wiper blade replacement — this is a wear item that varies entirely by climate and usage, not a mileage-based OEM service item
 
         Return ONLY valid JSON in this exact structure:
         {

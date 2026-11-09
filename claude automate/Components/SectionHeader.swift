@@ -8,7 +8,7 @@ struct SectionHeader: View {
     var body: some View {
         HStack {
             Text(title)
-                .font(.jakartaTitle3)
+                .font(.poppinsTitle3)
                 .foregroundStyle(Color.agForeground)
 
             Spacer()
@@ -16,7 +16,7 @@ struct SectionHeader: View {
             if let action {
                 Button(action: action) {
                     Text(actionLabel)
-                        .font(.jakartaCallout)
+                        .font(.poppinsCallout)
                         .foregroundStyle(Color.agPrimary)
                 }
             }

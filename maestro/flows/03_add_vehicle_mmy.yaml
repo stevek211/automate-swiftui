@@ -1,0 +1,79 @@
+appId: steve.kurien.claude-automate
+---
+# Env: YEAR, MAKE, MODEL, MILEAGE, USAGE, CONDITION, ANNUAL_MILES
+# Dropdowns replace the old accordion-style pickers.
+
+# --- Year dropdown ---
+- tapOn:
+    below: "Year*"
+- tapOn:
+    text: "${YEAR}"
+
+# --- Make dropdown ---
+- tapOn:
+    below: "Make*"
+- tapOn:
+    text: "${MAKE}"
+
+# --- Model dropdown ---
+- tapOn:
+    below: "Model*"
+- tapOn:
+    text: "${MODEL}"
+
+# --- Trim: leave as Select (optional field) ---
+
+# --- Mileage ---
+- tapOn:
+    text: "e.g. 47,230"
+- inputText: ${MILEAGE}
+- pressKey: Enter
+- waitForAnimationToEnd:
+    timeout: 500
+
+# --- Driving Profile (same screen) ---
+
+# How you use this car
+- scrollUntilVisible:
+    element:
+      text: ${USAGE}
+    direction: DOWN
+- tapOn:
+    text: ${USAGE}
+- waitForAnimationToEnd:
+    timeout: 500
+
+# Driving conditions
+- scrollUntilVisible:
+    element:
+      text: ${CONDITION}
+    direction: DOWN
+- tapOn:
+    text: ${CONDITION}
+- waitForAnimationToEnd:
+    timeout: 500
+
+# Annual miles — recorded swipe from Maestro Studio reliably scrolls the
+# page down to reveal the chip row.
+- swipe:
+    start: 75%,52%
+    end: 76%,14%
+    duration: 1213
+- waitForAnimationToEnd:
+    timeout: 1000
+- tapOn:
+    text: ${ANNUAL_MILES}
+- waitForAnimationToEnd:
+    timeout: 500
+
+# Submit
+- scrollUntilVisible:
+    element:
+      text: "Add Vehicle & Get Started"
+    direction: DOWN
+- tapOn:
+    text: "Add Vehicle & Get Started"
+
+# Wait for the transition animation to PostVehicleServiceSetupFlow.
+- waitForAnimationToEnd:
+    timeout: 3000

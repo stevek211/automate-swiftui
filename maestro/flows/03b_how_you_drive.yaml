@@ -1,0 +1,46 @@
+appId: steve.kurien.claude-automate
+---
+# Env: USAGE, CONDITION, ANNUAL_MILES (randomized per run by run_suite.sh)
+- extendedWaitUntil:
+    visible: "How You Drive"
+    timeout: 15000
+- waitForAnimationToEnd:
+    timeout: 3000
+
+# Usage (multi-select, pick one)
+- scrollUntilVisible:
+    element:
+      text: ${USAGE}
+    direction: UP
+- tapOn:
+    text: ${USAGE}
+- waitForAnimationToEnd:
+    timeout: 1000
+
+# Driving condition (multi-select, pick one). Matching a unique substring
+# sidesteps LazyVGrid / ScaleButtonStyle hit-test flakiness.
+- scrollUntilVisible:
+    element:
+      text: ${CONDITION}
+    direction: DOWN
+- tapOn:
+    text: ${CONDITION}
+- waitForAnimationToEnd:
+    timeout: 1000
+
+# Annual miles (single-select)
+- scrollUntilVisible:
+    element:
+      text: ${ANNUAL_MILES}
+    direction: DOWN
+- tapOn:
+    text: ${ANNUAL_MILES}
+- waitForAnimationToEnd:
+    timeout: 1000
+
+- scrollUntilVisible:
+    element:
+      text: "Add Vehicle & Get Started"
+    direction: DOWN
+- tapOn:
+    text: "Add Vehicle & Get Started"

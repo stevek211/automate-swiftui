@@ -16,12 +16,12 @@ struct DiagnosticCategoryCard: View {
 
                 VStack(spacing: AGSpacing.xs) {
                     Text(category.rawValue)
-                        .font(.jakartaCallout)
+                        .font(.poppinsCallout)
                         .fontWeight(.semibold)
                         .foregroundStyle(Color.agForeground)
 
                     Text(category.description)
-                        .font(.jakartaCaption2)
+                        .font(.poppinsCaption2)
                         .foregroundStyle(Color.agMutedForeground)
                         .multilineTextAlignment(.center)
                         .lineLimit(2)

@@ -14,20 +14,20 @@ struct ServiceLogRow: View {
 
             VStack(alignment: .leading, spacing: AGSpacing.xs) {
                 Text(log.name)
-                    .font(.jakartaCallout)
+                    .font(.poppinsCallout)
                     .fontWeight(.medium)
                     .foregroundStyle(Color.agForeground)
 
                 HStack(spacing: AGSpacing.sm) {
                     Text(log.date.formatted(.dateTime.month(.abbreviated).day().year()))
-                        .font(.jakartaCaption)
+                        .font(.poppinsCaption)
                         .foregroundStyle(Color.agMutedForeground)
 
                     if let shop = log.shop {
                         Text("·")
                             .foregroundStyle(Color.agMutedForeground)
                         Text(shop)
-                            .font(.jakartaCaption)
+                            .font(.poppinsCaption)
                             .foregroundStyle(Color.agMutedForeground)
                     }
                 }
@@ -36,7 +36,7 @@ struct ServiceLogRow: View {
             Spacer()
 
             Text("$\(Int(log.cost))")
-                .font(.jakartaHeadline)
+                .font(.poppinsHeadline)
                 .foregroundStyle(Color.agForeground)
         }
         .padding(.vertical, AGSpacing.sm)

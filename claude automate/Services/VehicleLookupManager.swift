@@ -132,7 +132,7 @@ class VehicleLookupManager {
         defer { isDecodingVIN = false }
 
         do {
-            let result = try await CarAPIService.decodeVIN(vin)
+            let result = try await NHTSAVINService.decodeVIN(vin)
             vinResult = result
             vinSuccess = "Found: \(result.year) \(result.make) \(result.model) \(result.trim ?? "")"
         } catch {

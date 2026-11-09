@@ -1,178 +1,89 @@
 import SwiftUI
+import UIKit
+import Supabase
 
 struct AddVehicleFlowView: View {
     @Environment(AppState.self) private var appState
+    @Environment(AuthState.self) private var authState
     @Environment(\.dismiss) private var dismiss
 
-    @State private var step = 1
-    @State private var expandedSection: String? = "year"
+    // Entry-point config
+    var allowDismiss: Bool = true
+    var primaryCTA: String = "Add Vehicle"
+    var onComplete: (() -> Void)? = nil
 
-    // Step 1 data
+    // Vehicle fields
+    @State private var vinInput = ""
     @State private var selectedYear: Int? = nil
     @State private var selectedMake = ""
     @State private var selectedModel = ""
     @State private var selectedTrim = ""
     @State private var mileageInput = ""
-    @State private var selectedColor = ""
-    @State private var searchMake = ""
-    @State private var searchModel = ""
-    @State private var searchTrim = ""
-    @State private var vinInput = ""
     @State private var lookupManager = VehicleLookupManager()
 
-    // Step 2 data
+    // Driving profile
     @State private var selectedUsage: Set<String> = []
     @State private var selectedConditions: Set<String> = []
     @State private var selectedAnnualMileage = ""
 
+    // Sheet state
     @State private var showDiscardConfirm = false
     @State private var addedVehicle: Vehicle? = nil
 
-    var mileageValue: Int { Int(mileageInput.replacingOccurrences(of: ",", with: "")) ?? 0 }
-
-    var canProceedStep1: Bool {
-        selectedYear != nil && !selectedMake.isEmpty && !selectedModel.isEmpty && mileageValue > 0
+    private var mileageValue: Int {
+        Int(mileageInput.replacingOccurrences(of: ",", with: "")) ?? 0
     }
 
-    var canSubmit: Bool {
-        !selectedUsage.isEmpty && !selectedConditions.isEmpty && !selectedAnnualMileage.isEmpty
-    }
-
-    var stepLabel: String {
-        if let year = selectedYear, !selectedMake.isEmpty, !selectedModel.isEmpty {
-            return "\(year) \(selectedMake) \(selectedModel)"
-        }
-        return "Your Car"
+    private var canSubmit: Bool {
+        selectedYear != nil &&
+        !selectedMake.isEmpty &&
+        !selectedModel.isEmpty &&
+        mileageValue > 0 &&
+        !selectedUsage.isEmpty &&
+        !selectedConditions.isEmpty &&
+        !selectedAnnualMileage.isEmpty
     }
 
     var body: some View {
         if let vehicle = addedVehicle {
             PostVehicleServiceSetupFlow(vehicle: vehicle) {
-                dismiss()
+                if let onComplete { onComplete() } else { dismiss() }
             }
             .transition(.move(edge: .trailing))
         } else {
-            addVehicleBody
+            formBody
         }
     }
 
-    var addVehicleBody: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                // Header with step indicator
-                VStack(spacing: 12) {
-                    HStack {
-                        if step == 2 {
-                            Button {
-                                withAnimation(.spring(duration: 0.2)) { step = 1 }
-                            } label: {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "arrow.left")
-                                        .font(.system(size: 14))
-                                    Text("Back")
-                                        .font(.system(size: 14, weight: .medium))
-                                }
-                                .foregroundStyle(Color.agMutedForeground)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                        Spacer()
-                        Text(step == 1 ? "Your Car" : "How You Drive")
-                            .font(.system(size: 18, weight: .bold))
-                            .foregroundStyle(Color.agForeground)
-                        Spacer()
-                        Button {
-                            if step == 1 && selectedMake.isEmpty {
-                                dismiss()
-                            } else {
-                                showDiscardConfirm = true
-                            }
-                        } label: {
-                            Image(systemName: "xmark")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundStyle(Color.agMutedForeground)
-                                .frame(width: 32, height: 32)
-                                .background(Color.agMuted)
-                                .clipShape(Circle())
-                        }
-                        .buttonStyle(.plain)
+    private var formBody: some View {
+        VStack(spacing: 0) {
+            header
+            Divider().background(Color.agBorder)
+            ScrollView {
+                VStack(spacing: 16) {
+                    vinField
+                    HStack(spacing: 12) {
+                        yearPickerField
+                        makePickerField
                     }
-
-                    // Progress bar
-                    HStack(spacing: 8) {
-                        Capsule()
-                            .fill(Color.agPrimary)
-                            .frame(height: 4)
-                        Capsule()
-                            .fill(step >= 2 ? Color.agPrimary : Color.agMuted)
-                            .frame(height: 4)
+                    HStack(spacing: 12) {
+                        modelPickerField
+                        trimPickerField
                     }
-
-                    if step == 2 {
-                        Text(stepLabel)
-                            .font(.system(size: 12))
-                            .foregroundStyle(Color.agMutedForeground)
-                    }
+                    mileageField
+                    drivingProfileDivider
+                    usageChips
+                    conditionChips
+                    annualMilesSegment
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 16)
-                .padding(.bottom, 12)
-                .background(Color.agBackground)
-
-                Divider()
-
-                // Content
-                if step == 1 {
-                    stepOneContent
-                } else {
-                    stepTwoContent
-                }
-
-                // Bottom CTA
-                VStack(spacing: 0) {
-                    Divider()
-                    if step == 1 {
-                        Button {
-                            withAnimation(.spring(duration: 0.2)) { step = 2 }
-                        } label: {
-                            HStack(spacing: 6) {
-                                Text("Continue")
-                                    .font(.system(size: 14, weight: .bold))
-                                Image(systemName: "chevron.right")
-                                    .font(.system(size: 12, weight: .semibold))
-                            }
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 14)
-                            .background(Color.agPrimary)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                        }
-                        .buttonStyle(ScaleButtonStyle())
-                        .disabled(!canProceedStep1)
-                        .opacity(canProceedStep1 ? 1 : 0.3)
-                    } else {
-                        Button {
-                            saveVehicle()
-                        } label: {
-                            Text("Add Vehicle")
-                                .font(.system(size: 14, weight: .bold))
-                                .foregroundStyle(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 14)
-                                .background(Color.agPrimary)
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
-                        }
-                        .buttonStyle(ScaleButtonStyle())
-                        .disabled(!canSubmit)
-                        .opacity(canSubmit ? 1 : 0.3)
-                    }
-                }
-                .padding(16)
-                .background(Color.agBackground.opacity(0.95))
+                .padding(.bottom, 120)
             }
-            .background(Color.agBackground)
-            .navigationBarHidden(true)
+            bottomCTA
         }
+        .background(Color.agBackground)
+        .interactiveDismissDisabled(!allowDismiss || addedVehicle != nil)
         .confirmationDialog("Discard vehicle?", isPresented: $showDiscardConfirm) {
             Button("Discard", role: .destructive) { dismiss() }
             Button("Keep editing", role: .cancel) {}
@@ -181,552 +92,441 @@ struct AddVehicleFlowView: View {
         }
     }
 
-    // MARK: - Step 1: Your Car
+    // MARK: - Header
 
-    var stepOneContent: some View {
-        ScrollView {
-            VStack(spacing: 0) {
-                // VIN Lookup Card
-                vinLookupCard
-                    .padding(.vertical, 12)
-
-                sectionDivider
-
-                // Year
-                accordionSection(
-                    id: "year",
-                    title: "Year",
-                    value: selectedYear.map(String.init)
-                ) {
-                    VStack(spacing: 8) {
-                        Picker("Year", selection: Binding(
-                            get: { selectedYear ?? 2024 },
-                            set: { selectedYear = $0 }
-                        )) {
-                            ForEach(VehicleDatabase.years, id: \.self) { y in
-                                Text(String(y)).tag(y)
-                            }
-                        }
-                        .pickerStyle(.wheel)
-                        .frame(height: 150)
-                        .clipped()
-
-                        Button {
-                            if selectedYear == nil { selectedYear = 2024 }
-                            withAnimation(.spring(duration: 0.2)) { expandedSection = "make" }
-                            Task { await lookupManager.loadMakes(year: selectedYear) }
-                        } label: {
-                            Text("Select \(selectedYear ?? 2024)")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundStyle(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 10)
-                                .background(Color.agPrimary)
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
-                        }
-                        .buttonStyle(ScaleButtonStyle())
-                    }
-                }
-
-                sectionDivider
-
-                // Make
-                accordionSection(
-                    id: "make",
-                    title: "Make",
-                    value: selectedMake.isEmpty ? nil : selectedMake
-                ) {
-                    VStack(spacing: 8) {
-                        searchField("Search makes...", text: $searchMake)
-
-                        if lookupManager.isLoadingMakes {
-                            ProgressView()
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 20)
-                        } else {
-                            let makesList = lookupManager.makes.isEmpty ? VehicleDatabase.makes : lookupManager.makes
-                            let filtered = makesList.filter {
-                                searchMake.isEmpty || $0.localizedCaseInsensitiveContains(searchMake)
-                            }
-                            ScrollView {
-                                VStack(spacing: 4) {
-                                    ForEach(filtered, id: \.self) { make in
-                                        optionButton(make, selected: selectedMake == make) {
-                                            selectedMake = make
-                                            selectedModel = ""
-                                            selectedTrim = ""
-                                            searchMake = ""
-                                            withAnimation(.spring(duration: 0.2)) { expandedSection = "model" }
-                                            if let year = selectedYear {
-                                                Task { await lookupManager.loadModels(make: make, year: year) }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            .frame(maxHeight: 180)
-                        }
-                    }
-                }
-
-                sectionDivider
-
-                // Model
-                accordionSection(
-                    id: "model",
-                    title: "Model",
-                    value: selectedModel.isEmpty ? nil : selectedModel
-                ) {
-                    if selectedMake.isEmpty {
-                        Text("Select a make first")
-                            .font(.system(size: 14))
-                            .foregroundStyle(Color.agMutedForeground)
-                            .padding(.vertical, 8)
-                    } else {
-                        VStack(spacing: 8) {
-                            searchField("Search models...", text: $searchModel)
-
-                            if lookupManager.isLoadingModels {
-                                ProgressView()
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 20)
-                            } else {
-                                let modelsList = lookupManager.models.isEmpty ? (VehicleDatabase.models[selectedMake] ?? []) : lookupManager.models
-                                let filtered = modelsList.filter {
-                                    searchModel.isEmpty || $0.localizedCaseInsensitiveContains(searchModel)
-                                }
-                                ScrollView {
-                                    VStack(spacing: 4) {
-                                        ForEach(filtered, id: \.self) { model in
-                                            optionButton(model, selected: selectedModel == model) {
-                                                selectedModel = model
-                                                selectedTrim = ""
-                                                searchModel = ""
-                                                withAnimation(.spring(duration: 0.2)) { expandedSection = "trim" }
-                                                if let year = selectedYear {
-                                                    Task { await lookupManager.loadTrims(make: selectedMake, model: model, year: year) }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                                .frame(maxHeight: 180)
-                            }
-                        }
-                    }
-                }
-
-                sectionDivider
-
-                // Trim
-                accordionSection(
-                    id: "trim",
-                    title: "Trim",
-                    value: selectedTrim.isEmpty ? nil : selectedTrim
-                ) {
-                    if selectedModel.isEmpty {
-                        Text("Select a model first")
-                            .font(.system(size: 14))
-                            .foregroundStyle(Color.agMutedForeground)
-                            .padding(.vertical, 8)
-                    } else if lookupManager.isLoadingTrims {
-                        ProgressView()
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 20)
-                    } else {
-                        let trimsList = lookupManager.trims.isEmpty ? VehicleDatabase.trimsFor(make: selectedMake, model: selectedModel) : lookupManager.trims
-                        VStack(spacing: 8) {
-                            if trimsList.count > 8 {
-                                searchField("Search trims...", text: $searchTrim)
-                            }
-
-                            let filtered = trimsList.filter {
-                                searchTrim.isEmpty || $0.localizedCaseInsensitiveContains(searchTrim)
-                            }
-                            ScrollView {
-                                VStack(spacing: 4) {
-                                    ForEach(filtered, id: \.self) { trim in
-                                        optionButton(trim, selected: selectedTrim == trim) {
-                                            selectedTrim = trim
-                                            searchTrim = ""
-                                            withAnimation(.spring(duration: 0.2)) { expandedSection = "mileage" }
-                                        }
-                                    }
-                                    Button {
-                                        selectedTrim = ""
-                                        searchTrim = ""
-                                        withAnimation(.spring(duration: 0.2)) { expandedSection = "mileage" }
-                                    } label: {
-                                        Text("Skip")
-                                            .font(.system(size: 14))
-                                            .foregroundStyle(Color.agMutedForeground)
-                                            .frame(maxWidth: .infinity, alignment: .leading)
-                                            .padding(.horizontal, 12)
-                                            .padding(.vertical, 10)
-                                    }
-                                    .buttonStyle(ScaleButtonStyle())
-                                }
-                            }
-                            .frame(maxHeight: 180)
-                        }
-                    }
-                }
-
-                sectionDivider
-
-                // Mileage
-                accordionSection(
-                    id: "mileage",
-                    title: "Mileage",
-                    value: mileageValue > 0 ? "\(mileageValue.formatted()) mi" : nil
-                ) {
-                    VStack(spacing: 8) {
-                        TextField("e.g. 47,230", text: $mileageInput)
-                            .font(.system(size: 24, weight: .bold))
-                            .multilineTextAlignment(.center)
-                            .keyboardType(.numberPad)
-                            .padding(12)
-                            .background(Color.agCard)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .strokeBorder(Color.agBorder, lineWidth: 1)
-                            )
-
-                        Text("Check your odometer for the exact number")
-                            .font(.system(size: 12))
-                            .foregroundStyle(Color.agMutedForeground)
-                    }
-                }
-
-                sectionDivider
-
-                // Color (optional)
-                accordionSection(
-                    id: "color",
-                    title: "Color (optional)",
-                    value: selectedColor.isEmpty ? nil : selectedColor
-                ) {
-                    VStack(spacing: 8) {
-                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 6) {
-                            ForEach(VehicleDatabase.commonColors, id: \.self) { color in
-                                optionButton(color, selected: selectedColor == color) {
-                                    selectedColor = color
-                                }
-                            }
-                        }
-
-                        TextField("Or enter custom color", text: Binding(
-                            get: { VehicleDatabase.commonColors.contains(selectedColor) ? "" : selectedColor },
-                            set: { selectedColor = $0 }
-                        ))
-                        .font(.system(size: 14))
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 10)
-                        .background(Color.agCard)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .strokeBorder(Color.agBorder, lineWidth: 1)
-                        )
-
-                        Button {
-                            selectedColor = ""
-                        } label: {
-                            Text("Skip")
-                                .font(.system(size: 14))
-                                .foregroundStyle(Color.agMutedForeground)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 10)
-                        }
-                        .buttonStyle(ScaleButtonStyle())
-                    }
-                }
-            }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 100)
-        }
-    }
-
-    // MARK: - Step 2: How You Drive
-
-    var stepTwoContent: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                // Context card
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Almost there!")
+    private var header: some View {
+        HStack {
+            Text("Add Vehicle")
+                .font(Font.custom("Quicksand", size: 18).weight(.bold))
+                .foregroundStyle(Color.agForeground)
+            Spacer()
+            if allowDismiss {
+                Button {
+                    if hasAnyInput { showDiscardConfirm = true } else { dismiss() }
+                } label: {
+                    Image(systemName: "xmark")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(Color.agForeground)
-                    Text("This helps us personalize your maintenance schedule. Cars driven in stop-and-go traffic need different care than highway cruisers.")
-                        .font(.system(size: 12))
                         .foregroundStyle(Color.agMutedForeground)
+                        .frame(width: 32, height: 32)
+                        .contentShape(Rectangle())
                 }
-                .padding(16)
-                .background(Color.agPrimary.opacity(0.05))
-                .clipShape(RoundedRectangle(cornerRadius: 16))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .strokeBorder(Color.agPrimary.opacity(0.1), lineWidth: 1)
-                )
-
-                // Usage
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("How do you use this car?")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(Color.agForeground)
-                    Text("Select all that apply")
-                        .font(.system(size: 12))
-                        .foregroundStyle(Color.agMutedForeground)
-
-                    VStack(spacing: 6) {
-                        ForEach(VehicleDatabase.usageOptions) { opt in
-                            let selected = selectedUsage.contains(opt.id)
-                            Button {
-                                if selected { selectedUsage.remove(opt.id) }
-                                else { selectedUsage.insert(opt.id) }
-                            } label: {
-                                HStack(spacing: 12) {
-                                    Image(systemName: opt.emoji)
-                                        .font(.system(size: 18))
-                                        .foregroundStyle(selected ? Color.agPrimary : Color.agMutedForeground)
-                                        .frame(width: 24)
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(opt.label)
-                                            .font(.system(size: 14, weight: .semibold))
-                                            .foregroundStyle(Color.agForeground)
-                                        Text(opt.subtitle)
-                                            .font(.system(size: 12))
-                                            .foregroundStyle(Color.agMutedForeground)
-                                    }
-                                    Spacer()
-                                    if selected {
-                                        Image(systemName: "checkmark")
-                                            .font(.system(size: 14, weight: .semibold))
-                                            .foregroundStyle(Color.agPrimary)
-                                    }
-                                }
-                                .padding(12)
-                                .background(selected ? Color.agPrimary.opacity(0.1) : Color.agMuted.opacity(0.5))
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .strokeBorder(selected ? Color.agPrimary.opacity(0.3) : Color.clear, lineWidth: 1)
-                                )
-                            }
-                            .buttonStyle(ScaleButtonStyle())
-                        }
-                    }
-                }
-
-                // Conditions
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Driving conditions")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(Color.agForeground)
-                    Text("Select all that apply")
-                        .font(.system(size: 12))
-                        .foregroundStyle(Color.agMutedForeground)
-
-                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 6) {
-                        ForEach(VehicleDatabase.conditionOptions) { opt in
-                            let selected = selectedConditions.contains(opt.id)
-                            Button {
-                                if selected { selectedConditions.remove(opt.id) }
-                                else { selectedConditions.insert(opt.id) }
-                            } label: {
-                                VStack(spacing: 6) {
-                                    Image(systemName: opt.emoji)
-                                        .font(.system(size: 20))
-                                        .foregroundStyle(selected ? Color.agPrimary : Color.agMutedForeground)
-                                    Text(opt.label)
-                                        .font(.system(size: 12, weight: .medium))
-                                        .foregroundStyle(Color.agForeground)
-                                        .multilineTextAlignment(.center)
-                                    if selected {
-                                        Image(systemName: "checkmark")
-                                            .font(.system(size: 10, weight: .semibold))
-                                            .foregroundStyle(Color.agPrimary)
-                                    }
-                                }
-                                .padding(12)
-                                .frame(maxWidth: .infinity)
-                                .background(selected ? Color.agPrimary.opacity(0.1) : Color.agMuted.opacity(0.5))
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .strokeBorder(selected ? Color.agPrimary.opacity(0.3) : Color.clear, lineWidth: 1)
-                                )
-                            }
-                            .buttonStyle(ScaleButtonStyle())
-                        }
-                    }
-                }
-
-                // Annual Mileage
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Annual miles")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(Color.agForeground)
-
-                    VStack(spacing: 6) {
-                        ForEach(VehicleDatabase.annualMileageOptions) { opt in
-                            let selected = selectedAnnualMileage == opt.id
-                            Button {
-                                selectedAnnualMileage = opt.id
-                            } label: {
-                                HStack {
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(opt.label)
-                                            .font(.system(size: 14, weight: .semibold))
-                                            .foregroundStyle(Color.agForeground)
-                                        Text(opt.subtitle)
-                                            .font(.system(size: 12))
-                                            .foregroundStyle(Color.agMutedForeground)
-                                    }
-                                    Spacer()
-                                    if selected {
-                                        Image(systemName: "checkmark")
-                                            .font(.system(size: 14, weight: .semibold))
-                                            .foregroundStyle(Color.agPrimary)
-                                    }
-                                }
-                                .padding(12)
-                                .background(selected ? Color.agPrimary.opacity(0.1) : Color.agMuted.opacity(0.5))
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .strokeBorder(selected ? Color.agPrimary.opacity(0.3) : Color.clear, lineWidth: 1)
-                                )
-                            }
-                            .buttonStyle(ScaleButtonStyle())
-                        }
-                    }
-                }
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 20)
-            .padding(.bottom, 100)
-        }
-    }
-
-    // MARK: - Helpers
-
-    @ViewBuilder
-    func accordionSection(id: String, title: String, value: String?, @ViewBuilder content: () -> some View) -> some View {
-        VStack(spacing: 0) {
-            Button {
-                withAnimation(.spring(duration: 0.2)) {
-                    expandedSection = expandedSection == id ? nil : id
-                }
-            } label: {
-                HStack {
-                    Text(title)
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(Color.agForeground)
-                    Spacer()
-                    HStack(spacing: 6) {
-                        if let value {
-                            Text(value)
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundStyle(Color.agPrimary)
-                        }
-                        Image(systemName: "chevron.down")
-                            .font(.system(size: 12))
-                            .foregroundStyle(Color.agMutedForeground)
-                            .rotationEffect(.degrees(expandedSection == id ? 180 : 0))
-                    }
-                }
-                .padding(.vertical, 16)
-            }
-            .buttonStyle(.plain)
-
-            if expandedSection == id {
-                content()
-                    .padding(.bottom, 16)
+                .buttonStyle(.plain)
+            } else {
+                Color.clear.frame(width: 32, height: 32)
             }
         }
+        .padding(.horizontal, 20)
+        .padding(.top, 16)
+        .padding(.bottom, 12)
+        .background(Color.agBackground)
     }
 
-    var sectionDivider: some View {
-        Rectangle()
-            .fill(Color.agBorder)
-            .frame(height: 1)
+    private var hasAnyInput: Bool {
+        selectedYear != nil || !selectedMake.isEmpty || !selectedModel.isEmpty ||
+        !mileageInput.isEmpty || !vinInput.isEmpty
     }
 
-    // MARK: - VIN Lookup Card
+    // MARK: - VIN
 
-    var vinLookupCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 6) {
-                Image(systemName: "barcode.viewfinder")
-                    .font(.system(size: 14))
-                    .foregroundStyle(Color.agPrimary)
-                Text("Have your VIN?")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(Color.agForeground)
-            }
-
-            Text("Enter your 17-character VIN to auto-fill your vehicle details.")
-                .font(.system(size: 12))
-                .foregroundStyle(Color.agMutedForeground)
-
+    private var vinField: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            fieldLabel("VIN", required: false)
             HStack(spacing: 8) {
-                TextField("e.g. 1HGCV1F34LA000001", text: $vinInput)
-                    .font(.system(size: 14, design: .monospaced))
-                    .textInputAutocapitalization(.characters)
-                    .autocorrectionDisabled()
+                VINInputField(text: $vinInput, placeholder: "17-character VIN (optional)")
                     .onChange(of: vinInput) { _, newValue in
-                        vinInput = String(newValue.prefix(17)).uppercased()
-                        if vinInput.count == 17 {
-                            Task { await decodeVIN() }
-                        }
+                        let capped = sanitizedVIN(newValue)
+                        if capped != vinInput { vinInput = capped }
+                        if vinInput.count == 17 { Task { await decodeVIN() } }
                     }
-
                 if lookupManager.isDecodingVIN {
-                    ProgressView()
-                        .frame(width: 20, height: 20)
+                    ProgressView().frame(width: 16, height: 16)
                 }
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
+            .frame(height: 41)
             .background(Color.agCard)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .clipShape(RoundedRectangle(cornerRadius: 14))
             .overlay(
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: 14)
                     .strokeBorder(Color.agBorder, lineWidth: 1)
             )
 
-            if let success = lookupManager.vinSuccess {
-                HStack(spacing: 6) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 12))
-                        .foregroundStyle(Color.agSuccess)
-                    Text(success)
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(Color.agSuccess)
-                }
+            if let error = lookupManager.vinError, !vinInput.isEmpty {
+                Text(error)
+                    .font(.system(size: 11))
+                    .foregroundStyle(Color.agMutedForeground)
             }
+        }
+    }
 
-            if let error = lookupManager.vinError {
-                HStack(spacing: 6) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.system(size: 12))
-                        .foregroundStyle(Color.agWarning)
-                    Text(error)
-                        .font(.system(size: 12))
+    // MARK: - Year picker (native menu dropdown)
+
+    private var yearPickerField: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            fieldLabel("Year", required: true)
+            Menu {
+                ForEach(VehicleDatabase.years, id: \.self) { year in
+                    Button(String(year)) {
+                        if selectedYear != year {
+                            selectedYear = year
+                            selectedMake = ""; selectedModel = ""; selectedTrim = ""
+                            lookupManager.makes = []; lookupManager.models = []; lookupManager.trims = []
+                            Task { await lookupManager.loadMakes(year: year) }
+                        }
+                    }
+                }
+            } label: {
+                HStack {
+                    Text(selectedYear.map(String.init) ?? "Select")
+                        .font(Font.custom("Quicksand", size: 14))
+                        .foregroundStyle(selectedYear == nil ? Color.agMutedForeground : Color.agForeground)
+                        .lineLimit(1)
+                    Spacer()
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(Color.agMutedForeground)
+                }
+                .padding(.horizontal, 12)
+                .frame(height: 41)
+                .background(Color.agCard)
+                .clipShape(RoundedRectangle(cornerRadius: 14))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14)
+                        .strokeBorder(Color.agBorder, lineWidth: 1)
+                )
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    // MARK: - Make / Model / Trim menu pickers
+
+    private var makePickerField: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            fieldLabel("Make", required: true)
+            let disabled = selectedYear == nil
+            let makes = lookupManager.makes.isEmpty ? VehicleDatabase.makes : lookupManager.makes
+            Menu {
+                if lookupManager.isLoadingMakes {
+                    Label("Loading…", systemImage: "clock").disabled(true)
+                } else {
+                    ForEach(makes, id: \.self) { make in
+                        Button(make) {
+                            selectedMake = make
+                            selectedModel = ""; selectedTrim = ""
+                            lookupManager.models = []; lookupManager.trims = []
+                            if let y = selectedYear {
+                                Task { await lookupManager.loadModels(make: make, year: y) }
+                            }
+                        }
+                    }
+                }
+            } label: {
+                menuLabel(selectedMake.isEmpty ? nil : selectedMake, disabled: disabled)
+            }
+            .disabled(disabled)
+            .task(id: selectedYear) {
+                if let y = selectedYear, lookupManager.makes.isEmpty {
+                    await lookupManager.loadMakes(year: y)
                 }
             }
         }
-        .padding(16)
-        .background(Color.agPrimary.opacity(0.03))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+    }
+
+    private var modelPickerField: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            fieldLabel("Model", required: true)
+            let disabled = selectedMake.isEmpty
+            let models = lookupManager.models.isEmpty
+                ? (VehicleDatabase.models[selectedMake] ?? [])
+                : lookupManager.models
+            Menu {
+                if lookupManager.isLoadingModels {
+                    Label("Loading…", systemImage: "clock").disabled(true)
+                } else {
+                    ForEach(models, id: \.self) { model in
+                        Button(model) {
+                            selectedModel = model
+                            selectedTrim = ""
+                            lookupManager.trims = []
+                            if let y = selectedYear {
+                                Task { await lookupManager.loadTrims(make: selectedMake, model: model, year: y) }
+                            }
+                        }
+                    }
+                }
+            } label: {
+                menuLabel(selectedModel.isEmpty ? nil : selectedModel, disabled: disabled)
+            }
+            .disabled(disabled)
+            .task(id: selectedMake) {
+                if !selectedMake.isEmpty, let y = selectedYear, lookupManager.models.isEmpty {
+                    await lookupManager.loadModels(make: selectedMake, year: y)
+                }
+            }
+        }
+    }
+
+    private var trimPickerField: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            fieldLabel("Trim", required: false)
+            let disabled = selectedModel.isEmpty
+            let trims = lookupManager.trims.isEmpty
+                ? VehicleDatabase.trimsFor(make: selectedMake, model: selectedModel)
+                : lookupManager.trims
+            Menu {
+                if lookupManager.isLoadingTrims {
+                    Label("Loading…", systemImage: "clock").disabled(true)
+                } else {
+                    Button("Skip") { selectedTrim = "" }
+                    ForEach(trims, id: \.self) { trim in
+                        Button(trim) { selectedTrim = trim }
+                    }
+                }
+            } label: {
+                menuLabel(selectedTrim.isEmpty ? nil : selectedTrim, disabled: disabled)
+            }
+            .disabled(disabled)
+            .task(id: selectedModel) {
+                if !selectedModel.isEmpty, let y = selectedYear, lookupManager.trims.isEmpty {
+                    await lookupManager.loadTrims(make: selectedMake, model: selectedModel, year: y)
+                }
+            }
+        }
+    }
+
+    private func menuLabel(_ value: String?, disabled: Bool) -> some View {
+        HStack {
+            Text(value ?? "Select")
+                .font(Font.custom("Quicksand", size: 14))
+                .foregroundStyle(value == nil ? Color.agMutedForeground : Color.agForeground)
+                .lineLimit(1)
+            Spacer()
+            Image(systemName: "chevron.down")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(Color.agMutedForeground)
+        }
+        .padding(.horizontal, 12)
+        .frame(height: 41)
+        .background(disabled ? Color.agMuted.opacity(0.4) : Color.agCard)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
         .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .strokeBorder(Color.agPrimary.opacity(0.15), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 14)
+                .strokeBorder(disabled ? Color.agBorder.opacity(0.5) : Color.agBorder, lineWidth: 1)
         )
+    }
+
+    // MARK: - Mileage
+
+    private var mileageField: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            fieldLabel("Current Mileage", required: true)
+            HStack {
+                TextField("e.g. 47,230", text: $mileageInput)
+                    .font(Font.custom("Quicksand", size: 14))
+                    .keyboardType(.numberPad)
+                    .onChange(of: mileageInput) { _, newValue in
+                        let digits = newValue.filter { $0.isNumber }
+                        if let n = Int(digits) {
+                            let formatted = n.formatted(.number.grouping(.automatic))
+                            if mileageInput != formatted { mileageInput = formatted }
+                        } else {
+                            mileageInput = digits
+                        }
+                    }
+                Text("mi")
+                    .font(Font.custom("Quicksand", size: 12))
+                    .foregroundStyle(Color.agMutedForeground)
+            }
+            .padding(.horizontal, 12)
+            .frame(height: 41)
+            .background(Color.agCard)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .strokeBorder(Color.agBorder, lineWidth: 1)
+            )
+        }
+    }
+
+    // MARK: - Driving profile
+
+    private var drivingProfileDivider: some View {
+        HStack(spacing: 12) {
+            Rectangle().fill(Color.agBorder).frame(height: 1)
+            Text("Driving Profile")
+                .font(Font.custom("Quicksand", size: 10))
+                .tracking(0.5)
+                .foregroundStyle(Color.agMutedForeground)
+            Rectangle().fill(Color.agBorder).frame(height: 1)
+        }
+        .padding(.top, 4)
+    }
+
+    private var usageChips: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            fieldLabel("How you use this car", required: true)
+            ChipFlowLayout(spacing: 8, rowSpacing: 8) {
+                ForEach(VehicleDatabase.usageOptions) { opt in
+                    chip(label: opt.label, emoji: usageEmoji(opt.id),
+                         selected: selectedUsage.contains(opt.id)) {
+                        if selectedUsage.contains(opt.id) { selectedUsage.remove(opt.id) }
+                        else { selectedUsage.insert(opt.id) }
+                    }
+                }
+            }
+        }
+    }
+
+    private var conditionChips: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            fieldLabel("Driving conditions", required: true)
+            ChipFlowLayout(spacing: 8, rowSpacing: 8) {
+                ForEach(VehicleDatabase.conditionOptions) { opt in
+                    chip(label: opt.label, emoji: conditionEmoji(opt.id),
+                         selected: selectedConditions.contains(opt.id)) {
+                        if selectedConditions.contains(opt.id) { selectedConditions.remove(opt.id) }
+                        else { selectedConditions.insert(opt.id) }
+                    }
+                }
+            }
+        }
+    }
+
+    private var annualMilesSegment: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            fieldLabel("Annual miles", required: true)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(VehicleDatabase.annualMileageOptions) { opt in
+                        let selected = selectedAnnualMileage == opt.id
+                        Button {
+                            selectedAnnualMileage = opt.id
+                        } label: {
+                            Text(opt.label)
+                                .font(Font.custom("Quicksand", size: 12).weight(.medium))
+                                .foregroundStyle(selected ? .white : Color.agForeground)
+                                .padding(.horizontal, 14)
+                                .frame(height: 33)
+                                .background(selected ? Color.agPrimary : Color.agCard)
+                                .clipShape(RoundedRectangle(cornerRadius: 14))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 14)
+                                        .strokeBorder(selected ? Color.clear : Color.agPrimary.opacity(0.5), lineWidth: 1)
+                                )
+                        }
+                        .buttonStyle(ScaleButtonStyle())
+                    }
+                }
+                .padding(.vertical, 2)
+            }
+        }
+    }
+
+    // MARK: - Chip / Label helpers
+
+    private func chip(label: String, emoji: String, selected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Text(emoji).font(Font.custom("Quicksand", size: 14))
+                Text(label)
+                    .font(Font.custom("Quicksand", size: 12).weight(.medium))
+                    .foregroundStyle(selected ? .white : Color.agForeground)
+            }
+            .padding(.horizontal, 14)
+            .frame(height: 29)
+            .background(selected ? Color.agPrimary : Color.agCard)
+            .clipShape(Capsule())
+            .overlay(
+                Capsule()
+                    .strokeBorder(selected ? Color.clear : Color.agPrimary.opacity(0.5), lineWidth: 1)
+            )
+        }
+        .buttonStyle(ScaleButtonStyle())
+    }
+
+    private func fieldLabel(_ text: String, required: Bool) -> some View {
+        HStack(spacing: 0) {
+            Text(text)
+                .font(Font.custom("Quicksand", size: 12).weight(.bold))
+                .foregroundStyle(Color.agForeground)
+            if required {
+                Text("*")
+                    .font(Font.custom("Quicksand", size: 12).weight(.bold))
+                    .foregroundStyle(Color.agPrimary)
+            }
+        }
+    }
+
+    // Usage/condition emoji lookup. Falls back to a neutral glyph when the
+    // option doesn't have a dedicated emoji in its id.
+    private func usageEmoji(_ id: String) -> String {
+        switch id {
+        case "commute", "daily-commute": return "🏢"
+        case "weekend", "weekend-trips": return "🌄"
+        case "family", "family-hauler": return "👨‍👩‍👧‍👦"
+        case "road-trip", "road-trips": return "🗺️"
+        case "performance", "performance-driving": return "🏁"
+        case "work", "work-truck": return "🔧"
+        case "rideshare": return "🚕"
+        default: return "🚗"
+        }
+    }
+
+    private func conditionEmoji(_ id: String) -> String {
+        switch id {
+        case "city", "city-traffic": return "🏙️"
+        case "highway": return "🛣️"
+        case "hills", "hills-mountains", "mountains": return "⛰️"
+        case "dusty", "dusty-roads": return "🌫️"
+        case "hot", "hot-climate": return "☀️"
+        case "cold", "cold-snow", "snow": return "❄️"
+        case "rain", "wet": return "🌧️"
+        case "stop-go": return "🚦"
+        default: return "📍"
+        }
+    }
+
+    // MARK: - Bottom CTA
+
+    private var bottomCTA: some View {
+        Button {
+            saveVehicle()
+        } label: {
+            Text(primaryCTA)
+                .font(Font.custom("Quicksand", size: 14).weight(.semibold))
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .frame(height: 48)
+                .background(Color(red: 0.83, green: 0.64, blue: 0.45))
+                .clipShape(RoundedRectangle(cornerRadius: 14))
+        }
+        .buttonStyle(ScaleButtonStyle())
+        .disabled(!canSubmit)
+        .opacity(canSubmit ? 1 : 0.3)
+        .padding(.horizontal, 16)
+        .padding(.top, 16)
+        .frame(maxWidth: .infinity)
+        .background(Color.white.opacity(0.95))
+        .overlay(
+            Rectangle()
+                .strokeBorder(Color(red: 0.95, green: 0.96, blue: 0.96), lineWidth: 0.5)
+        )
+    }
+
+    // MARK: - VIN + save
+
+    private func sanitizedVIN(_ value: String) -> String {
+        let cleaned = value.uppercased().filter { $0.isLetter || $0.isNumber }
+        return String(cleaned.prefix(17))
+    }
+
+    private func setVINInput(_ value: String) {
+        vinInput = sanitizedVIN(value)
+        if vinInput.count == 17 {
+            Task { await decodeVIN() }
+        }
     }
 
     private func decodeVIN() async {
@@ -736,43 +536,10 @@ struct AddVehicleFlowView: View {
             selectedMake = result.make
             selectedModel = result.model
             selectedTrim = result.trim ?? ""
-            withAnimation(.spring(duration: 0.2)) { expandedSection = "mileage" }
         }
     }
 
-    private func searchField(_ placeholder: String, text: Binding<String>) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 12))
-                .foregroundStyle(Color.agMutedForeground)
-            TextField(placeholder, text: text)
-                .font(.system(size: 14))
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(Color.agCard)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(Color.agBorder, lineWidth: 1)
-        )
-    }
-
-    func optionButton(_ label: String, selected: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(label)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(selected ? .white : Color.agForeground)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 10)
-                .background(selected ? Color.agPrimary : Color.agMuted.opacity(0.5))
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-        }
-        .buttonStyle(ScaleButtonStyle())
-    }
-
-    func saveVehicle() {
+    private func saveVehicle() {
         let usageLabels = VehicleDatabase.usageOptions
             .filter { selectedUsage.contains($0.id) }
             .map(\.label)
@@ -787,7 +554,7 @@ struct AddVehicleFlowView: View {
             model: selectedModel,
             trim: selectedTrim.isEmpty ? nil : selectedTrim,
             mileage: mileageValue,
-            color: selectedColor.isEmpty ? "Unknown" : selectedColor,
+            color: "Unknown",
             vin: vinInput.count == 17 ? vinInput : nil,
             healthScore: 100,
             lastService: nil,
@@ -799,14 +566,149 @@ struct AddVehicleFlowView: View {
             annualMileage: selectedAnnualMileage.isEmpty ? nil : selectedAnnualMileage
         )
         appState.addVehicle(vehicle)
-        print("🚗 [AddVehicle] Vehicle saved: \(vehicle.displayName) — transitioning to service setup")
+        if let userId = authState.currentUser?.id {
+            Task { await SupabaseManager.upsertVehicle(vehicle, userId: userId) }
+        }
+        if onComplete != nil {
+            AnalyticsService.shared.track(.onboardingVehicleAdded)
+        }
         withAnimation(.easeInOut(duration: 0.35)) {
             addedVehicle = vehicle
         }
     }
 }
 
+private struct VINInputField: UIViewRepresentable {
+    @Binding var text: String
+    let placeholder: String
+
+    func makeUIView(context: Context) -> UITextField {
+        let textField = CommandPasteTextField()
+        textField.delegate = context.coordinator
+        textField.placeholder = placeholder
+        textField.font = UIFont(name: "Quicksand-Regular", size: 14) ?? .systemFont(ofSize: 14)
+        textField.textColor = UIColor(Color.agForeground)
+        textField.autocapitalizationType = .allCharacters
+        textField.autocorrectionType = .no
+        textField.spellCheckingType = .no
+        textField.returnKeyType = .done
+        textField.clearButtonMode = .never
+        textField.backgroundColor = .clear
+        return textField
+    }
+
+    func updateUIView(_ uiView: UITextField, context: Context) {
+        if uiView.text != text {
+            uiView.text = text
+        }
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(text: $text)
+    }
+
+    final class Coordinator: NSObject, UITextFieldDelegate {
+        @Binding private var text: String
+
+        init(text: Binding<String>) {
+            _text = text
+        }
+
+        func textField(
+            _ textField: UITextField,
+            shouldChangeCharactersIn range: NSRange,
+            replacementString string: String
+        ) -> Bool {
+            let current = textField.text ?? ""
+            guard let swiftRange = Range(range, in: current) else { return false }
+            let proposed = current.replacingCharacters(in: swiftRange, with: string)
+            let sanitized = String(
+                proposed
+                    .uppercased()
+                    .filter { $0.isLetter || $0.isNumber }
+                    .prefix(17)
+            )
+            text = sanitized
+            textField.text = sanitized
+            return false
+        }
+
+        func textFieldShouldReturn(_ textField: UITextField) -> Bool {
+            textField.resignFirstResponder()
+            return true
+        }
+    }
+}
+
+private final class CommandPasteTextField: UITextField {
+    override var keyCommands: [UIKeyCommand]? {
+        [
+            UIKeyCommand(
+                input: "v",
+                modifierFlags: .command,
+                action: #selector(commandPaste)
+            )
+        ]
+    }
+
+    @objc private func commandPaste() {
+        paste(nil)
+    }
+}
+
+// MARK: - Simple flow layout for chip rows
+
+private struct ChipFlowLayout: Layout {
+    var spacing: CGFloat = 8
+    var rowSpacing: CGFloat = 8
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let width = proposal.width ?? 0
+        let rows = arrange(width: width, subviews: subviews)
+        let height = rows.reduce(0) { $0 + $1.height } + CGFloat(max(0, rows.count - 1)) * rowSpacing
+        return CGSize(width: width, height: height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let rows = arrange(width: bounds.width, subviews: subviews)
+        var y = bounds.minY
+        for row in rows {
+            var x = bounds.minX
+            for item in row.items {
+                item.view.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(item.size))
+                x += item.size.width + spacing
+            }
+            y += row.height + rowSpacing
+        }
+    }
+
+    private struct Row {
+        var items: [(view: LayoutSubview, size: CGSize)] = []
+        var height: CGFloat = 0
+    }
+
+    private func arrange(width: CGFloat, subviews: Subviews) -> [Row] {
+        var rows: [Row] = []
+        var current = Row()
+        var x: CGFloat = 0
+        for sub in subviews {
+            let size = sub.sizeThatFits(.unspecified)
+            if x + size.width > width && !current.items.isEmpty {
+                rows.append(current)
+                current = Row()
+                x = 0
+            }
+            current.items.append((sub, size))
+            current.height = max(current.height, size.height)
+            x += size.width + spacing
+        }
+        if !current.items.isEmpty { rows.append(current) }
+        return rows
+    }
+}
+
 #Preview {
     AddVehicleFlowView()
         .environment(AppState())
+        .environment(AuthState())
 }

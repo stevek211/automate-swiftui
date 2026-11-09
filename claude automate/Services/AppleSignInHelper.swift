@@ -60,11 +60,39 @@ class AppleSignInHelper: NSObject, ASAuthorizationControllerDelegate, ASAuthoriz
     // MARK: - ASAuthorizationControllerPresentationContextProviding
 
     func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
-        guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              let window = scene.windows.first else {
-            return ASPresentationAnchor()
+        // Prefer an existing foreground-active window if available
+        if let windowScene = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .first(where: { $0.activationState == .foregroundActive }) {
+            if let window = windowScene.keyWindow
+                ?? windowScene.windows.first(where: { !$0.isHidden })
+                ?? windowScene.windows.first {
+                return window
+            }
+            // Fallback: create a window bound to the scene (avoid deprecated init())
+            let window = UIWindow(windowScene: windowScene)
+            // Ensure it has a rootViewController so it can act as a valid presentation anchor
+            if window.rootViewController == nil {
+                window.rootViewController = UIViewController()
+            }
+            return window
         }
-        return window
+        // If no active scene is available, try any connected window scene
+        if let anyScene = UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }).first {
+            let window = UIWindow(windowScene: anyScene)
+            if window.rootViewController == nil {
+                window.rootViewController = UIViewController()
+            }
+            return window
+        }
+        // Ultimate fallback: create a temporary window using a new window scene when possible
+        // Note: Returning an empty ASPresentationAnchor can cause presentation failures.
+        // As a last resort, provide a dummy window not attached to UI (still requires a scene on modern iOS).
+        let tempWindow = UIWindow()
+        if tempWindow.rootViewController == nil {
+            tempWindow.rootViewController = UIViewController()
+        }
+        return tempWindow
     }
 
     // MARK: - Helpers

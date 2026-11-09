@@ -1,0 +1,45 @@
+appId: steve.kurien.claude-automate
+name: AutoMate Service Plan Screenshot Suite
+---
+- runFlow: 01_launch.yaml
+
+- runFlow:
+    file: 02_signup.yaml
+    env:
+      EMAIL: ${EMAIL}
+      PASSWORD: ${PASSWORD}
+      FIRST: ${FIRST}
+      LAST: ${LAST}
+
+- runFlow:
+    when:
+      true: ${MODE == "vin"}
+    file: 03_add_vehicle_vin.yaml
+    env:
+      VIN: ${VIN}
+      MILEAGE: ${MILEAGE}
+      USAGE: ${USAGE}
+      CONDITION: ${CONDITION}
+      ANNUAL_MILES: ${ANNUAL_MILES}
+
+- runFlow:
+    when:
+      true: ${MODE == "mmy"}
+    file: 03_add_vehicle_mmy.yaml
+    env:
+      YEAR: ${YEAR}
+      MAKE: ${MAKE}
+      MODEL: ${MODEL}
+      MILEAGE: ${MILEAGE}
+      USAGE: ${USAGE}
+      CONDITION: ${CONDITION}
+      ANNUAL_MILES: ${ANNUAL_MILES}
+
+# 03b_how_you_drive.yaml removed — driving profile is now part of the Add Vehicle form.
+
+- runFlow: 04_post_vehicle_questions.yaml
+
+- runFlow:
+    file: 05_service_plan.yaml
+    env:
+      SCREENSHOT_PATH: ${SCREENSHOT_PATH}

@@ -6,6 +6,7 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var showDeleteConfirmation = false
     @State private var showLogoutConfirmation = false
+    @State private var cacheClearedMessage: String?
 
     var body: some View {
         NavigationStack {
@@ -19,9 +20,9 @@ struct SettingsView: View {
 
                         VStack(alignment: .leading, spacing: AGSpacing.xs) {
                             Text(authState.currentUser?.name ?? "Driver")
-                                .font(.jakartaHeadline)
+                                .font(.poppinsHeadline)
                             Text(authState.currentUser?.email ?? "")
-                                .font(.jakartaCaption)
+                                .font(.poppinsCaption)
                                 .foregroundStyle(Color.agMutedForeground)
                         }
                     }
@@ -64,7 +65,7 @@ struct SettingsView: View {
                             Spacer()
                             if appState.isDemo {
                                 Text("Demo")
-                                    .font(.jakartaCaption)
+                                    .font(.poppinsCaption)
                                     .foregroundStyle(Color.agAccent)
                                     .padding(.horizontal, AGSpacing.sm)
                                     .padding(.vertical, AGSpacing.xs)
@@ -72,7 +73,7 @@ struct SettingsView: View {
                                     .clipShape(Capsule())
                             } else {
                                 Text("Live")
-                                    .font(.jakartaCaption)
+                                    .font(.poppinsCaption)
                                     .foregroundStyle(Color.agSuccess)
                                     .padding(.horizontal, AGSpacing.sm)
                                     .padding(.vertical, AGSpacing.xs)
@@ -82,6 +83,24 @@ struct SettingsView: View {
                         }
                     }
                 }
+
+                #if DEBUG
+                Section("Debug") {
+                    Button {
+                        let count = AIMaintenanceAnalyzer.clearCache()
+                        cacheClearedMessage = count == 0
+                            ? "No cached schedules to clear."
+                            : "Cleared \(count) cached schedule\(count == 1 ? "" : "s")."
+                    } label: {
+                        Label("Clear OEM Schedule Cache", systemImage: "trash.slash")
+                    }
+                    if let msg = cacheClearedMessage {
+                        Text(msg)
+                            .font(.poppinsCaption)
+                            .foregroundStyle(Color.agMutedForeground)
+                    }
+                }
+                #endif
 
                 // Actions
                 Section {

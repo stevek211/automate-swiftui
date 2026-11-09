@@ -5,6 +5,10 @@ extension Font {
         .custom(weight.fontName, size: size)
     }
 
+    static func quicksand(_ weight: QuicksandWeight, size: CGFloat) -> Font {
+        .custom(weight.fontName, size: size)
+    }
+
     static let poppinsLargeTitle: Font = .custom("Poppins-Bold", size: 28)
     static let poppinsTitle: Font     = .custom("Poppins-Bold", size: 22)
     static let poppinsTitle2: Font    = .custom("Poppins-SemiBold", size: 20)
@@ -26,6 +30,20 @@ enum PoppinsWeight {
         case .medium:   return "Poppins-Medium"
         case .semibold: return "Poppins-SemiBold"
         case .bold:     return "Poppins-Bold"
+        }
+    }
+}
+
+enum QuicksandWeight {
+    case light, regular, medium, semibold, bold
+
+    var fontName: String {
+        switch self {
+        case .light:    return "Quicksand-Light"
+        case .regular:  return "Quicksand-Regular"
+        case .medium:   return "Quicksand-Medium"
+        case .semibold: return "Quicksand-SemiBold"
+        case .bold:     return "Quicksand-Bold"
         }
     }
 }

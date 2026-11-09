@@ -13,18 +13,18 @@ struct MileageUpdaterSheet: View {
 
                     VStack(alignment: .leading, spacing: AGSpacing.sm) {
                         Text("Current Mileage")
-                            .font(.jakartaCallout)
+                            .font(.poppinsCallout)
                         Text("\(vehicle.mileage.formatted()) miles")
-                            .font(.jakartaTitle2)
+                            .font(.poppinsTitle2)
                             .foregroundStyle(Color.agMutedForeground)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                     VStack(alignment: .leading, spacing: AGSpacing.sm) {
                         Text("New Mileage")
-                            .font(.jakartaCallout)
+                            .font(.poppinsCallout)
                         TextField("Enter new mileage", text: $mileageText)
-                            .font(.jakartaBody)
+                            .font(.poppinsBody)
                             .keyboardType(.numberPad)
                             .padding(AGSpacing.md)
                             .background(Color.agMuted)

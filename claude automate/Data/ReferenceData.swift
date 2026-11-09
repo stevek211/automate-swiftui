@@ -18,11 +18,4 @@ enum ReferenceData {
 
     // MARK: - Learning Articles (knowledge base — not user data)
     static var articles: [LearningArticle] { DemoData.articles }
-
-    // MARK: - Quote Validation (knowledge base — not user data)
-    static var repairPrices: [DemoData.RepairPriceData] { DemoData.repairPrices }
-
-    static func validateQuote(repairName: String, price: Double) -> QuoteResult? {
-        DemoData.validateQuote(repairName: repairName, price: price)
-    }
 }

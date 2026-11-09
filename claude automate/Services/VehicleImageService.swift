@@ -11,14 +11,18 @@ enum VehicleImageService {
     ///   - model: Vehicle model (e.g. "CR-V", "Camry Hybrid")
     ///   - year: Model year (e.g. 2021)
     ///   - color: Vehicle color string (e.g. "White", "Midnight Blue") — mapped to IMAGIN paint ID
-    ///   - angle: Camera angle, default "01" (front 3/4 view)
+    ///   - angle: Camera angle, default "01" (front 3/4 view). "21" is a side profile, nose left.
+    ///   - tightCrop: Adds `zoomType=fullscreen` so the car fills the image edge-to-edge.
+    ///   - width: Optional output width in pixels.
     /// - Returns: A fully-formed IMAGIN.studio CDN URL, or nil if encoding fails.
     static func vehicleImageURL(
         make: String,
         model: String,
         year: Int,
         color: String? = nil,
-        angle: String = "01"
+        angle: String = "01",
+        tightCrop: Bool = false,
+        width: Int? = nil
     ) -> URL? {
         let resolvedMake = resolveParam(make)
         let resolvedModel = resolveModelFamily(model)
@@ -34,6 +38,14 @@ enum VehicleImageService {
         // Add paint color if we can map it
         if let color, let paintId = resolvePaintId(color) {
             queryItems.append(URLQueryItem(name: "paintId", value: paintId))
+        }
+
+        // Crop whitespace so the car fills the frame edge-to-edge.
+        if tightCrop {
+            queryItems.append(URLQueryItem(name: "zoomType", value: "fullscreen"))
+        }
+        if let width {
+            queryItems.append(URLQueryItem(name: "width", value: String(width)))
         }
 
         var components = URLComponents(string: "https://cdn.imagin.studio/getimage")

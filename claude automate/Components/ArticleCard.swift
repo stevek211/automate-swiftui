@@ -14,18 +14,18 @@ struct ArticleCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: AGSpacing.md) {
             Text(article.title)
-                .font(.jakartaHeadline)
+                .font(.poppinsHeadline)
                 .foregroundStyle(Color.agForeground)
 
             Text(article.description)
-                .font(.jakartaCallout)
+                .font(.poppinsCallout)
                 .foregroundStyle(Color.agMutedForeground)
                 .lineLimit(2)
 
             HStack(spacing: AGSpacing.md) {
                 // Difficulty badge
                 Text(article.difficulty.rawValue)
-                    .font(.jakartaCaption2)
+                    .font(.poppinsCaption2)
                     .foregroundStyle(difficultyColor)
                     .padding(.horizontal, AGSpacing.sm)
                     .padding(.vertical, AGSpacing.xs)
@@ -34,14 +34,14 @@ struct ArticleCard: View {
 
                 // Read time
                 Label("\(article.readTimeMinutes) min", systemImage: "clock")
-                    .font(.jakartaCaption)
+                    .font(.poppinsCaption)
                     .foregroundStyle(Color.agMutedForeground)
 
                 Spacer()
 
                 // Category
                 Text(article.category.rawValue)
-                    .font(.jakartaCaption2)
+                    .font(.poppinsCaption2)
                     .foregroundStyle(Color.agMutedForeground)
             }
         }

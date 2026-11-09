@@ -70,9 +70,9 @@ struct ServiceAlertListSheet: View {
                                 .font(.system(size: 48))
                                 .foregroundStyle(Color.agSuccess)
                             Text("All caught up!")
-                                .font(.jakartaTitle3)
+                                .font(.poppinsTitle3)
                             Text("No maintenance alerts at this time.")
-                                .font(.jakartaBody)
+                                .font(.poppinsBody)
                                 .foregroundStyle(Color.agMutedForeground)
                         }
                         .frame(maxWidth: .infinity)

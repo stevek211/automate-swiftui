@@ -1,0 +1,10 @@
+appId: steve.kurien.claude-automate
+---
+# Wipe keychain + Documents so signup is fresh and OEM schedule cache is empty.
+- launchApp:
+    clearState: true
+    clearKeychain: true
+# 1.6s splash fade (see OnboardingView.swift). Wait for first interactable element.
+- extendedWaitUntil:
+    visible: "Welcome to AutoMate"
+    timeout: 15000

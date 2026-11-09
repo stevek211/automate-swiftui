@@ -29,7 +29,7 @@ struct CardStyle: ViewModifier {
 struct PrimaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.jakartaHeadline)
+            .font(.poppinsHeadline)
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity)
             .padding(.vertical, AGSpacing.md)
@@ -43,7 +43,7 @@ struct PrimaryButtonStyle: ButtonStyle {
 struct SecondaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.jakartaHeadline)
+            .font(.poppinsHeadline)
             .foregroundStyle(Color.agPrimary)
             .frame(maxWidth: .infinity)
             .padding(.vertical, AGSpacing.md)

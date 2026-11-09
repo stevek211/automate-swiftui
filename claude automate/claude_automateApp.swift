@@ -1,10 +1,28 @@
 import SwiftUI
 import Supabase
+import CoreText
 
 @main
 struct AutoGuardApp: App {
     @State private var appState = AppState()
     @State private var authState = AuthState()
+
+    init() {
+        registerBundleFonts()
+        guard !PreviewSupport.isRunningForPreviews else { return }
+        AnalyticsService.shared.track(.appLaunched)
+    }
+
+    private func registerBundleFonts() {
+        let fontNames = [
+            "Poppins-Light", "Poppins-Regular", "Poppins-Medium", "Poppins-SemiBold", "Poppins-Bold",
+            "Quicksand-Light", "Quicksand-Regular", "Quicksand-Medium", "Quicksand-SemiBold", "Quicksand-Bold",
+        ]
+        for name in fontNames {
+            guard let url = Bundle.main.url(forResource: name, withExtension: "ttf") else { continue }
+            CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil)
+        }
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -51,6 +69,15 @@ struct RootView: View {
             }
         }
         .onAppear {
+            #if DEBUG
+            // `-demoHome` launch argument: skip auth and land on Home with demo data (UI checks only).
+            if ProcessInfo.processInfo.arguments.contains("-demoHome") {
+                appState.isDemo = true
+                appState.selectedVehicleId = appState.vehicles.first?.id
+                showOnboarding = false
+                return
+            }
+            #endif
             // On launch: if already authenticated, configure AppState for that user
             if let user = authState.currentUser {
                 appState.configure(for: user.id)

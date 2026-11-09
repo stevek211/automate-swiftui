@@ -89,21 +89,21 @@ struct NoiseDiagnosisView: View {
 
                             VStack(alignment: .leading, spacing: AGSpacing.xs) {
                                 Text(diagnosis.diagnosis)
-                                    .font(.jakartaTitle2)
+                                    .font(.poppinsTitle2)
                                 StatusPill(text: diagnosis.severity.rawValue + " Severity", color: Color.severityColor(diagnosis.severity))
                             }
                         }
 
                         Text(diagnosis.description)
-                            .font(.jakartaBody)
+                            .font(.poppinsBody)
                             .foregroundStyle(Color.agMutedForeground)
 
                         HStack {
                             Text("Estimated Repair Cost")
-                                .font(.jakartaHeadline)
+                                .font(.poppinsHeadline)
                             Spacer()
                             Text(diagnosis.estimatedCost)
-                                .font(.jakartaTitle3)
+                                .font(.poppinsTitle3)
                                 .foregroundStyle(Color.agPrimary)
                         }
                         .cardStyle()
@@ -133,7 +133,7 @@ struct NoiseDiagnosisView: View {
     func questionSection(title: String, options: [String], selected: Binding<String?>) -> some View {
         VStack(alignment: .leading, spacing: AGSpacing.md) {
             Text(title)
-                .font(.jakartaTitle3)
+                .font(.poppinsTitle3)
                 .foregroundStyle(Color.agForeground)
 
             FlowLayout(spacing: AGSpacing.sm) {
@@ -142,7 +142,7 @@ struct NoiseDiagnosisView: View {
                         withAnimation { selected.wrappedValue = option }
                     } label: {
                         Text(option)
-                            .font(.jakartaCallout)
+                            .font(.poppinsCallout)
                             .foregroundStyle(selected.wrappedValue == option ? .white : Color.agForeground)
                             .padding(.horizontal, AGSpacing.lg)
                             .padding(.vertical, AGSpacing.md)

@@ -21,11 +21,11 @@ struct HealthScoreBar: View {
         VStack(alignment: .leading, spacing: AGSpacing.sm) {
             HStack {
                 Text("\(current) of \(total) items current")
-                    .font(.jakartaCaption)
+                    .font(.poppinsCaption)
                     .foregroundStyle(Color.agMutedForeground)
                 Spacer()
                 Text("\(Int(progress * 100))%")
-                    .font(.jakartaCaption)
+                    .font(.poppinsCaption)
                     .foregroundStyle(color)
             }
 

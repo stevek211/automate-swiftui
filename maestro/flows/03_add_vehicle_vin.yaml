@@ -1,0 +1,68 @@
+appId: steve.kurien.claude-automate
+---
+# Env: VIN, MILEAGE, USAGE, CONDITION, ANNUAL_MILES
+
+# Enter VIN — new placeholder text.
+- tapOn:
+    text: "17-character VIN (optional)"
+- inputText: ${VIN}
+- pressKey: Enter
+
+# VIN decode auto-populates Year/Make/Model dropdowns. Give it time.
+- waitForAnimationToEnd:
+    timeout: 8000
+
+# Mileage field is now directly visible (no accordion).
+- tapOn:
+    text: "e.g. 47,230"
+- inputText: ${MILEAGE}
+- pressKey: Enter
+- waitForAnimationToEnd:
+    timeout: 500
+
+# --- Driving Profile (now on the same screen) ---
+
+# How you use this car (single-select chip)
+- scrollUntilVisible:
+    element:
+      text: ${USAGE}
+    direction: DOWN
+- tapOn:
+    text: ${USAGE}
+- waitForAnimationToEnd:
+    timeout: 500
+
+# Driving conditions (multi-select chip)
+- scrollUntilVisible:
+    element:
+      text: ${CONDITION}
+    direction: DOWN
+- tapOn:
+    text: ${CONDITION}
+- waitForAnimationToEnd:
+    timeout: 500
+
+# Annual miles — recorded swipe from Maestro Studio reliably scrolls the
+# page down to reveal the chip row.
+- swipe:
+    start: 75%,52%
+    end: 76%,14%
+    duration: 1213
+- waitForAnimationToEnd:
+    timeout: 1000
+- tapOn:
+    text: ${ANNUAL_MILES}
+- waitForAnimationToEnd:
+    timeout: 500
+
+# Submit
+- scrollUntilVisible:
+    element:
+      text: "Add Vehicle & Get Started"
+    direction: DOWN
+- tapOn:
+    text: "Add Vehicle & Get Started"
+
+# Wait for the transition animation to PostVehicleServiceSetupFlow.
+- waitForAnimationToEnd:
+    timeout: 3000

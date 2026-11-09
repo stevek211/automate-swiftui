@@ -11,19 +11,19 @@ struct VehicleCard: View {
 
             VStack(alignment: .leading, spacing: AGSpacing.xs) {
                 Text(vehicle.fullDisplayName)
-                    .font(compact ? .jakartaCallout : .jakartaHeadline)
+                    .font(compact ? .poppinsCallout : .poppinsHeadline)
                     .foregroundStyle(Color.agForeground)
 
                 HStack(spacing: AGSpacing.sm) {
                     Label("\(vehicle.mileage.formatted()) mi", systemImage: "speedometer")
-                        .font(.jakartaCaption)
+                        .font(.poppinsCaption)
                         .foregroundStyle(Color.agMutedForeground)
 
                     if !compact {
                         Text("·")
                             .foregroundStyle(Color.agMutedForeground)
                         Text(vehicle.color)
-                            .font(.jakartaCaption)
+                            .font(.poppinsCaption)
                             .foregroundStyle(Color.agMutedForeground)
                     }
                 }
@@ -53,7 +53,7 @@ struct HealthScoreBadge: View {
 
     var body: some View {
         Text("\(score)")
-            .font(.jakartaHeadline)
+            .font(.poppinsHeadline)
             .foregroundStyle(color)
             .frame(width: 44, height: 44)
             .background(color.opacity(0.1))

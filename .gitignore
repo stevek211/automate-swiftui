@@ -14,3 +14,7 @@ xcuserdata/
 # Secrets (just in case)
 *.env
 Secrets.swift
+
+# Maestro outputs
+maestro/screenshots/
+maestro/results/

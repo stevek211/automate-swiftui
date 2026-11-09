@@ -10,19 +10,34 @@ enum ServiceAction: String, Codable {
     case replace
     case perform
     case inspect
+    case rotate
     case clean
     case adjust
+    case check
 
     /// Normalize an arbitrary OEM action string into one of our enum cases.
-    /// Extra words like "inspect and replace if necessary" map to `.inspect`
-    /// (the primary verb); unknown verbs fall back to `.perform`.
+    /// Handles compound actions like "rotate and inspect" or "inspect and replace if necessary"
+    /// by picking the most specific primary verb; unknown verbs fall back to `.perform`.
     static func normalize(_ raw: String) -> ServiceAction {
         let lower = raw.lowercased()
-        if lower.hasPrefix("replace") { return .replace }
-        if lower.hasPrefix("inspect") { return .inspect }
-        if lower.hasPrefix("clean")   { return .clean }
-        if lower.hasPrefix("adjust")  { return .adjust }
-        if lower.hasPrefix("perform") { return .perform }
+        // Exact or prefix matches first
+        if lower.hasPrefix("replace")                       { return .replace }
+        if lower.hasPrefix("inspect")                       { return .inspect }
+        if lower.hasPrefix("rotate")                        { return .rotate }
+        if lower.hasPrefix("clean")                         { return .clean }
+        if lower.hasPrefix("adjust")                        { return .adjust }
+        if lower.hasPrefix("check")                         { return .check }
+        if lower.hasPrefix("perform")                       { return .perform }
+        // Compound phrases — pick the dominant verb by presence
+        if lower.contains("replace")                        { return .replace }
+        if lower.contains("rotate")                         { return .rotate }
+        if lower.contains("inspect")                        { return .inspect }
+        if lower.contains("check")                          { return .check }
+        if lower.contains("clean")                          { return .clean }
+        if lower.contains("adjust")                         { return .adjust }
+        if lower.hasPrefix("change") || lower.contains("change") { return .replace }
+        if lower.hasPrefix("lubricate") || lower.contains("lubricate") { return .perform }
+        if lower.hasPrefix("drain") || lower.contains("drain and fill") { return .replace }
         return .perform
     }
 
@@ -31,8 +46,10 @@ enum ServiceAction: String, Codable {
         case .replace: return "REPLACE"
         case .perform: return "PERFORM"
         case .inspect: return "INSPECT"
+        case .rotate:  return "ROTATE"
         case .clean:   return "CLEAN"
         case .adjust:  return "ADJUST"
+        case .check:   return "CHECK"
         }
     }
 
@@ -41,7 +58,7 @@ enum ServiceAction: String, Codable {
     var group: ServiceItemGroup {
         switch self {
         case .replace: return .replacements
-        case .perform, .inspect, .clean, .adjust: return .inspections
+        case .perform, .inspect, .rotate, .clean, .adjust, .check: return .inspections
         }
     }
 }
