@@ -394,36 +394,46 @@ private struct HomeHeroCarImage: View {
             model: vehicle.model,
             year: vehicle.year,
             color: vehicle.color,
-            angle: "21",
+            angle: "28",
             tightCrop: true,
             width: 1200
         )
     }
 
+    /// IMAGIN returns a 1.6:1 canvas with a fixed ground line: the bottom ~23% is
+    /// always empty below the car's shadow. Show only the top 78% so the stats card
+    /// sits right under the car regardless of body style.
+    private static let imageAspect: CGFloat = 1.6
+    private static let visibleFraction: CGFloat = 0.78
+
     var body: some View {
-        AsyncImage(url: url, transaction: Transaction(animation: .easeIn(duration: 0.25))) { phase in
-            switch phase {
-            case .success(let image):
-                // Fit (not fill) so tall bodies like SUVs/trucks never get their roof cropped.
-                image
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-            case .empty:
-                ProgressView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            default:
-                Image("car-illustration")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .padding(24)
-                    .opacity(0.6)
+        Color.clear
+            .aspectRatio(Self.imageAspect / Self.visibleFraction, contentMode: .fit)
+            .overlay(alignment: .top) {
+                AsyncImage(url: url, transaction: Transaction(animation: .easeIn(duration: 0.25))) { phase in
+                    switch phase {
+                    case .success(let image):
+                        // Full width; height overflows the band and the empty strip is clipped off.
+                        image
+                            .resizable()
+                            .aspectRatio(Self.imageAspect, contentMode: .fill)
+                    case .empty:
+                        ProgressView()
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    default:
+                        Image("car-illustration")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .padding(24)
+                            .opacity(0.6)
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
-        }
-        // Bleed slightly past the 24pt gutters like the design (438pt image in a 390pt column).
-        .frame(maxWidth: .infinity)
-        .frame(height: 180)
-        .padding(.horizontal, -12)
-        .accessibilityLabel("\(vehicle.color) \(vehicle.make) \(vehicle.model)")
+            .clipped()
+            // Bleed slightly past the 24pt gutters like the design (438pt image in a 390pt column).
+            .padding(.horizontal, -12)
+            .accessibilityLabel("\(vehicle.color) \(vehicle.make) \(vehicle.model)")
     }
 }
 
