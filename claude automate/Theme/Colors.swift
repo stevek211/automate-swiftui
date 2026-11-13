@@ -73,6 +73,28 @@ extension Color {
     static let agOnboardingSubtext = Color(hex: "746B62")    // medium brown
     static let agOnboardingMuted = Color(hex: "8A8178")      // muted brown
 
+    // Garage palette (Figma "My Garage", nodes 500:2 / 496:2339)
+    static let garageInk = Color(hex: "262D43")              // card text, icons
+    static let garageTitle = Color(hex: "1F154E")            // "My Garage" heading
+    static let garageDot = Color(hex: "D5BDAF")              // heading full stop
+    static let garageMuted = Color(hex: "62748E")            // eyebrow, vehicle count
+    static let garageHairline = Color(hex: "E2E8F0")
+    static let garageCardFill = Color(hex: "F9F7F7")
+    static let garageCardBorderPrimary = Color(hex: "919791") // first card
+    static let garageCardBorder = Color(hex: "B5BDB5")        // stacked cards
+    static let garageGradientTop = Color(hex: "F4F4F4")
+    static let garageGradientEnd = Color(hex: "ECE2D3")
+    static let garageButtonFill = Color(hex: "F1F5F9")
+
+    // Settings palette (Figma "Settings", node 526:4677)
+    static let settingsMuted = Color(hex: "636978")          // captions, section numbers
+    static let settingsAccentDot = Color(hex: "7B9C81")      // heading full stop
+    static let settingsAvatarFill = Color(hex: "EEE9DF")     // avatar, export card
+    static let settingsChipFill = Color(hex: "EAE7E2")       // mileage picker
+    static let settingsBackBorder = Color(hex: "E4E2DE")
+    static let settingsLabel = Color(hex: "665F58")           // account row labels
+    static let settingsRowDivider = Color(hex: "E3DDD5")
+
     // Severity colors
     static func severityColor(_ severity: Severity) -> Color {
         switch severity {

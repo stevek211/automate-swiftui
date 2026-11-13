@@ -125,7 +125,7 @@ struct SystemDetailView: View {
             }
             .padding(AGSpacing.screenPadding)
         }
-        .background(Color.agBackground)
+        .appBackground()
         .navigationTitle(system.name)
         .navigationBarTitleDisplayMode(.inline)
     }

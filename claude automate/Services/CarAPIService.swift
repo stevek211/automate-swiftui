@@ -54,11 +54,19 @@ enum CarAPIService {
         let make_id: Int?
     }
 
+    /// `/trims/v2` item: the trim name is in `trim` (falls back to `submodel`).
     private struct TrimItem: Decodable {
         let id: Int
-        let name: String
+        let trim: String?
+        let submodel: String?
         let year: Int?
         let description: String?
+
+        var displayName: String? {
+            let value = (trim?.isEmpty == false ? trim : submodel)?
+                .trimmingCharacters(in: .whitespaces)
+            return value?.isEmpty == false ? value : nil
+        }
     }
 
     // MARK: - Authentication
@@ -122,11 +130,9 @@ enum CarAPIService {
 
     /// Fetch all makes, optionally filtered by year.
     static func fetchMakes(year: Int? = nil) async throws -> [String] {
-        var components = URLComponents(string: "\(baseURL)/makes")!
+        var components = URLComponents(string: "\(baseURL)/makes/v2")!
         var queryItems: [URLQueryItem] = [
-            URLQueryItem(name: "limit", value: "1000"),
-            URLQueryItem(name: "sort", value: "name"),
-            URLQueryItem(name: "direction", value: "asc")
+            URLQueryItem(name: "limit", value: "1000")
         ]
         if let year {
             queryItems.append(URLQueryItem(name: "year", value: "\(year)"))
@@ -145,20 +151,18 @@ enum CarAPIService {
         }
 
         let result = try JSONDecoder().decode(PaginatedResponse<MakeItem>.self, from: data)
-        let makes = result.data.map { $0.name.capitalized }.sorted()
+        let makes = Array(Set(result.data.map(\.name))).sorted()
         print("🚗 [CarAPI] Fetched \(makes.count) makes")
         return makes
     }
 
     /// Fetch models for a given make and year.
     static func fetchModels(make: String, year: Int) async throws -> [String] {
-        var components = URLComponents(string: "\(baseURL)/models")!
+        var components = URLComponents(string: "\(baseURL)/models/v2")!
         components.queryItems = [
             URLQueryItem(name: "make", value: make),
             URLQueryItem(name: "year", value: "\(year)"),
-            URLQueryItem(name: "limit", value: "1000"),
-            URLQueryItem(name: "sort", value: "name"),
-            URLQueryItem(name: "direction", value: "asc")
+            URLQueryItem(name: "limit", value: "1000")
         ]
 
         guard let url = components.url else { throw CarAPIError.invalidURL }
@@ -181,14 +185,12 @@ enum CarAPIService {
 
     /// Fetch trims for a given make, model, and year.
     static func fetchTrims(make: String, model: String, year: Int) async throws -> [String] {
-        var components = URLComponents(string: "\(baseURL)/trims")!
+        var components = URLComponents(string: "\(baseURL)/trims/v2")!
         components.queryItems = [
             URLQueryItem(name: "make", value: make),
             URLQueryItem(name: "model", value: model),
             URLQueryItem(name: "year", value: "\(year)"),
-            URLQueryItem(name: "limit", value: "1000"),
-            URLQueryItem(name: "sort", value: "name"),
-            URLQueryItem(name: "direction", value: "asc")
+            URLQueryItem(name: "limit", value: "1000")
         ]
 
         guard let url = components.url else { throw CarAPIError.invalidURL }
@@ -203,7 +205,7 @@ enum CarAPIService {
         }
 
         let result = try JSONDecoder().decode(PaginatedResponse<TrimItem>.self, from: data)
-        let trims = Array(Set(result.data.map(\.name))).sorted()
+        let trims = Array(Set(result.data.compactMap(\.displayName))).sorted()
         print("🚗 [CarAPI] Fetched \(trims.count) trims for \(year) \(make) \(model)")
         return trims
     }

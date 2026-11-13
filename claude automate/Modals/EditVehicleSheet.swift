@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Edit the selected vehicle's details from Home (trim, colour, year, make/model, odometer).
+/// Edit the selected vehicle's details from Home (year, odometer, make/model, trim).
 /// Styled like the Log Service sheet via FormSheetScaffold.
 struct EditVehicleSheet: View {
     @Environment(AppState.self) private var appState
@@ -10,12 +10,6 @@ struct EditVehicleSheet: View {
     @State private var lookupManager = VehicleLookupManager()
     @State private var draft: Vehicle?
     @State private var mileageText = ""
-
-    /// Colours the car photo API understands (see VehicleImageService.resolvePaintId).
-    private static let colors = [
-        "White", "Black", "Silver", "Gray", "Red", "Blue", "Green",
-        "Brown", "Gold", "Orange", "Yellow", "Purple", "Beige",
-    ]
 
     var body: some View {
         FormSheetScaffold(
@@ -75,24 +69,12 @@ struct EditVehicleSheet: View {
                 FormSheetHint(text: "Changing the make or model updates the car photo. Your service schedule stays as it is.")
             }
 
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(alignment: .top, spacing: 16) {
-                    FormSheetField(label: "Trim") {
-                        FormSheetMenuField(
-                            selection: trimBinding(draft),
-                            options: [""] + trimOptions(current: draft.wrappedValue.trim),
-                            label: { $0.isEmpty ? (lookupManager.isLoadingTrims ? "Loading…" : "Not set") : $0 }
-                        )
-                    }
-                    FormSheetField(label: "Colour") {
-                        FormSheetMenuField(
-                            selection: draft.color,
-                            options: colorOptions(current: draft.wrappedValue.color),
-                            label: { $0 == "Unknown" ? "Not set" : $0 }
-                        )
-                    }
-                }
-                FormSheetHint(text: "Pick the one trim your car is, and its colour so the photo matches.")
+            FormSheetField(label: "Trim") {
+                FormSheetMenuField(
+                    selection: trimBinding(draft),
+                    options: [""] + trimOptions(current: draft.wrappedValue.trim),
+                    label: { $0.isEmpty ? (lookupManager.isLoadingTrims ? "Loading…" : "Not set") : $0 }
+                )
             }
         }
     }
@@ -124,10 +106,6 @@ struct EditVehicleSheet: View {
             .split(separator: ",")
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
-    }
-
-    private func colorOptions(current: String) -> [String] {
-        Self.colors.contains(current) ? Self.colors : [current] + Self.colors
     }
 
     private static func yearRange(including year: Int) -> [Int] {

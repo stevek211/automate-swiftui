@@ -32,6 +32,9 @@ enum ServicePlanPalette {
     static let textMuted     = Color(red: 0.29, green: 0.33, blue: 0.40)
     static let textBody      = Color(hex: "4A5565")
     static let textFaint     = Color(red: 0.60, green: 0.63, blue: 0.69)
+    static let textItem      = Color(hex: "1E2939")
+    static let actionNeutral = Color(hex: "6A7282")
+    static let itemCircle    = Color(hex: "99A1AF")
 }
 
 // MARK: - Circular Miles Gauge
@@ -92,38 +95,26 @@ struct LogServiceButton: View {
     }
 }
 
-// MARK: - Action Pill
+// MARK: - Action Label
 
-struct ActionPill: View {
+/// Plain monospaced caps label ("REPLACE", "INSPECT") — Figma V2 ledger rows
+/// use colored text only, no chip background.
+struct ActionLabel: View {
     let action: ServiceAction
-
-    private var bg: Color {
-        switch action {
-        case .replace:              return ServicePlanPalette.replaceTint
-        case .adjust, .clean:       return ServicePlanPalette.tealTintChip
-        case .perform:              return ServicePlanPalette.greenTint
-        case .rotate:               return ServicePlanPalette.tealTintChip
-        case .inspect, .check:      return ServicePlanPalette.neutralChipBg
-        }
-    }
 
     private var fg: Color {
         switch action {
         case .replace, .adjust, .clean, .rotate: return ServicePlanPalette.teal
         case .perform:              return ServicePlanPalette.greenText
-        case .inspect, .check:      return ServicePlanPalette.neutralChipTxt
+        case .inspect, .check:      return ServicePlanPalette.actionNeutral
         }
     }
 
     var body: some View {
         Text(action.displayText)
-            .font(.quicksand(.semibold, size: 9))
-            .kerning(0.2)
+            .font(.custom("Menlo-Regular", size: 8))
+            .kerning(0.4)
             .foregroundStyle(fg)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
-            .background(bg)
-            .clipShape(RoundedRectangle(cornerRadius: 4))
     }
 }
 
@@ -136,53 +127,91 @@ struct ServiceItemRow: View {
     var body: some View {
         Button { checked.toggle() } label: {
             HStack(spacing: 10) {
-                RoundedRectangle(cornerRadius: 3)
-                    .strokeBorder(ServicePlanPalette.borderCheckbox, lineWidth: 1.5)
-                    .background(
-                        RoundedRectangle(cornerRadius: 3)
-                            .fill(checked ? ServicePlanPalette.teal : Color.white)
-                    )
-                    .frame(width: 16, height: 16)
-                    .overlay(
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(.white)
-                            .opacity(checked ? 1 : 0)
-                    )
-
-                if let asset = ServiceItemIcon.customAsset(for: item.category) {
-                    Image(asset)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 16, height: 16)
-                } else {
-                    Image(systemName: ServiceItemIcon.sfSymbol(for: item.category, action: item.action))
-                        .font(.system(size: 11))
-                        .foregroundStyle(ServicePlanPalette.textBody)
-                        .frame(width: 14, height: 14)
+                // 13pt outlined circle (Figma 317:104); fills teal when ticked.
+                ZStack {
+                    Circle()
+                        .fill(checked ? ServicePlanPalette.teal : Color.clear)
+                    Circle()
+                        .strokeBorder(checked ? ServicePlanPalette.teal : ServicePlanPalette.itemCircle,
+                                      lineWidth: 1.08)
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 7, weight: .bold))
+                        .foregroundStyle(.white)
+                        .opacity(checked ? 1 : 0)
                 }
+                .frame(width: 13, height: 13)
+                .padding(1)
+
+                ServiceItemIconView(name: item.name, category: item.category)
 
                 Text(item.name)
                     .font(.quicksand(.medium, size: 12))
-                    .foregroundStyle(ServicePlanPalette.textPrimary)
+                    .foregroundStyle(ServicePlanPalette.textItem)
                     .strikethrough(checked, color: ServicePlanPalette.textMuted)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
 
                 Spacer(minLength: 4)
-                ActionPill(action: item.action).fixedSize()
+                ActionLabel(action: item.action).fixedSize()
             }
             .padding(.horizontal, 4)
             .padding(.vertical, 6)
+            .frame(minHeight: 27)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
 }
 
+// MARK: - Item icon
+
+/// 16pt monochrome icon shown beside each service item. Uses a line-art asset
+/// when one exists for the part, otherwise a generic wrench.
+struct ServiceItemIconView: View {
+    let name: String
+    let category: String
+
+    var body: some View {
+        Group {
+            if let asset = ServiceItemIcon.asset(name: name, category: category) {
+                Image(asset)
+                    .renderingMode(.template)
+                    .resizable()
+                    .scaledToFit()
+            } else {
+                Image(systemName: "wrench.adjustable")
+                    .resizable()
+                    .scaledToFit()
+                    .padding(1.5)
+            }
+        }
+        .foregroundStyle(ServicePlanPalette.textBody)
+        .frame(width: 16, height: 16)
+        .accessibilityHidden(true)
+    }
+}
+
 // MARK: - Category → icon mapping
 
 enum ServiceItemIcon {
+    /// Line-art asset for an item, matched on the item name first (categories
+    /// from Perplexity are broad — "fluids" covers brake fluid and diff fluid)
+    /// then on category. Nil means no dedicated icon yet → generic fallback.
+    static func asset(name: String, category: String) -> String? {
+        let n = name.lowercased()
+        let c = category.lowercased().replacingOccurrences(of: "ai-", with: "")
+        if n.contains("oil") && !n.contains("differential") && !n.contains("transmission") {
+            return "icon-oil-can"
+        }
+        if n.contains("tire") || n.contains("tyre") || c == "tires" { return "Tire" }
+        if n.contains("transmission") || n.contains("differential") || n.contains("transfer case")
+            || c == "transmission" {
+            return "Transmission"
+        }
+        if c == "oil" { return "icon-oil-can" }
+        return nil
+    }
+
     static func customAsset(for category: String) -> String? {
         switch category.lowercased() {
         case "oil": return "icon-oil-can"
@@ -248,7 +277,7 @@ struct CompactMilestoneRow: View {
                         Text("\(milestone.replaceCount) replace · \(milestone.items.count) items")
                             .font(.quicksand(.medium, size: 10))
                             .foregroundStyle(ServicePlanPalette.textSecondary)
-                        Image(systemName: isExpanded ? "chevron.up" : "chevron.right")
+                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                             .font(.system(size: 10, weight: .medium))
                             .foregroundStyle(ServicePlanPalette.dotColor)
                     }

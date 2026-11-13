@@ -547,6 +547,7 @@ struct PostVehicleServiceSetupFlow: View {
                     .underline()
                     .foregroundStyle(Color(red: 0.42, green: 0.42, blue: 0.42))
             }
+            let exceedsOdometer = mileageExceedsOdometer(text.wrappedValue)
             TextField(placeholder, text: text)
                 .onChange(of: text.wrappedValue) { _, newValue in
                     let digits = newValue.filter(\.isNumber)
@@ -563,9 +564,32 @@ struct PostVehicleServiceSetupFlow: View {
                 .clipShape(RoundedRectangle(cornerRadius: 14))
                 .overlay(
                     RoundedRectangle(cornerRadius: 14)
-                        .strokeBorder(Color.black.opacity(0.2), lineWidth: 0.5)
+                        .strokeBorder(
+                            exceedsOdometer ? Color.agWarning : Color.black.opacity(0.2),
+                            lineWidth: exceedsOdometer ? 1 : 0.5
+                        )
                 )
+
+            // A past service can't be at more miles than the car has now — usually a typo.
+            if exceedsOdometer {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Image(systemName: "exclamationmark.circle")
+                        .font(.system(size: 12, weight: .medium))
+                    Text("Are you sure? That's higher than your car's current mileage of \(vehicle.mileage.formatted()) miles. Check the number on your receipt or sticker.")
+                        .font(Font.custom("Quicksand", size: 12))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .foregroundStyle(Color.agWarning)
+                .transition(.opacity)
+            }
         }
+        .animation(.easeInOut(duration: 0.15), value: mileageExceedsOdometer(text.wrappedValue))
+    }
+
+    /// True when a "mileage at last service" entry is above the car's current odometer.
+    private func mileageExceedsOdometer(_ text: String) -> Bool {
+        guard let value = Int(text.filter(\.isNumber)) else { return false }
+        return value > vehicle.mileage
     }
 
     private func formatMileageInput(_ digits: String) -> String {
@@ -788,15 +812,10 @@ struct PostVehicleServiceSetupFlow: View {
         return entries
     }
 
+    /// Uses the shared mapping so it matches the ids the sign-up options actually save
+    /// (the old switch checked ids like "under-5k" that were never stored).
     private func estimateAnnualMiles() -> Int {
-        switch vehicle.annualMileage {
-        case "under-5k", "under-7500": return 5000
-        case "5k-10k", "7500-15000": return 11000
-        case "10k-15k", "15000-25000": return 20000
-        case "15k-20k": return 17500
-        case "over-20k", "over-25000": return 28000
-        default: return 12000
-        }
+        MileageReminder.annualMiles(for: vehicle)
     }
 
     private func estimateDate(answer: String, mapping: [String: Int], from date: Date) -> Date {

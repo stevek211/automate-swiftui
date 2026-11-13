@@ -56,7 +56,7 @@ struct WarningLightDecoderView: View {
             }
             .padding(AGSpacing.screenPadding)
         }
-        .background(Color.agBackground)
+        .appBackground()
         .navigationTitle("Warning Lights")
         .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $searchText, prompt: "Search warning lights")
@@ -138,7 +138,7 @@ struct DiagnosticLightDetailView: View {
                 }
                 .padding(AGSpacing.screenPadding)
             }
-            .background(Color.agBackground)
+            .appBackground()
             .navigationTitle(light.name)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

@@ -42,7 +42,16 @@ class AppState {
     var vehicles: [Vehicle] = [] {
         didSet {
             if !isDemo && activeUserId != nil { persistVehicles() }
+            // Keep each car's "update your odometer" reminder 28 days after its latest reading.
+            if shouldScheduleMileageReminders { MileageReminderScheduler.reschedule(for: vehicles) }
         }
+    }
+
+    private var shouldScheduleMileageReminders: Bool {
+        #if DEBUG
+        if MileageReminder.debugReminderSeconds != nil { return true }
+        #endif
+        return !isDemo && activeUserId != nil
     }
     var selectedVehicleId: UUID? = nil {
         didSet {
@@ -163,10 +172,68 @@ class AppState {
             selectedVehicleId = vehicles.first?.id
         }
 
+        repairScheduleDerivedItems()
+    }
+
+    /// Repairs maintenance items saved before the schedule math was fixed.
+    ///
+    /// Cars whose manufacturer publishes no fixed mileages (Acura/Honda Maintenance
+    /// Minder etc.) had every item saved as "overdue" with a generic description.
+    /// Recompute those from the saved schedule and the baseline service answers.
+    private func repairScheduleDerivedItems() {
+        let askedCategories: Set<String> = ["oil", "tires", "brakes", "filters", "battery", "transmission"]
+        var updated = maintenanceItems
+        var changed = false
+
+        for index in updated.indices {
+            let item = updated[index]
+            guard item.category.hasPrefix("ai-"),
+                  item.description.contains("no mileage interval found")
+                    || item.description.hasPrefix("No service history recorded"),
+                  let vehicle = vehicles.first(where: { $0.id == item.vehicleId }),
+                  let scheduleItem = oemSchedules[item.vehicleId]?.first(where: { $0.name == item.name })
+            else { continue }
+
+            let category = String(item.category.dropFirst("ai-".count))
+            let baseline = serviceLogs.first {
+                $0.vehicleId == item.vehicleId && $0.shop == "AutoGuard Baseline"
+                    && $0.category.rawValue.lowercased() == category
+            }
+            let baselineKnown = baseline?.notes?.contains("Status: known") == true
+            let current = vehicle.mileage
+
+            if baselineKnown, let last = baseline?.mileage, last <= current,
+               let interval = scheduleItem.resolvedIntervalMiles, interval > 0 {
+                // The user told us roughly when this was last done.
+                let nextDue = last + interval
+                let remaining = nextDue - current
+                if remaining < 0 {
+                    updated[index].status = .overdue
+                    updated[index].description = "Last done at around \(last.formatted()) miles. Was due at around \(nextDue.formatted()) miles — overdue by about \((-remaining).formatted()) miles."
+                } else {
+                    updated[index].status = remaining <= max(500, Int(Double(interval) * 0.15)) ? .dueSoon : .onTrack
+                    updated[index].description = "Last done at around \(last.formatted()) miles. Next due at around \(nextDue.formatted()) miles (\(remaining.formatted()) miles to go)."
+                }
+                updated[index].dueMileage = nextDue
+            } else {
+                let result = MaintenanceScheduleMath.scheduleStatus(
+                    for: scheduleItem,
+                    currentMileage: current,
+                    historyUnknown: baseline != nil ? !baselineKnown : false
+                )
+                updated[index].status = result.status
+                updated[index].dueMileage = result.dueMileage
+                updated[index].description = result.description
+            }
+            changed = true
+        }
+
+        if changed { maintenanceItems = updated }
     }
 
     /// Called on logout — wipes all in-memory user data, no files touched.
     func clear() {
+        MileageReminderScheduler.cancelAll()
         activeUserId = nil
         vehicles = []
         serviceLogs = []
@@ -204,6 +271,13 @@ class AppState {
         if vehicle.mileageUpdatedAt == nil { vehicle.mileageUpdatedAt = .now }
         vehicles.append(vehicle)
         selectedVehicleId = vehicle.id
+        askForReminderPermission()
+    }
+
+    /// First natural moment to ask for notification permission: the user just entered mileage.
+    private func askForReminderPermission() {
+        guard shouldScheduleMileageReminders else { return }
+        MileageReminderScheduler.requestPermissionIfNeeded(thenSchedule: vehicles)
     }
 
     /// Replaces a vehicle's details (edit sheet). Stamps the mileage date when
@@ -288,6 +362,27 @@ class AppState {
         }
     }
 
+    #if DEBUG
+    /// `-refreshSchedule` launch flag: re-runs the schedule lookup for a car (ignoring the
+    /// cache) and replaces its schedule, sources and AI items. Service history is kept.
+    func debugRefreshSchedule(for vehicleId: UUID) async {
+        guard let vehicle = vehicles.first(where: { $0.id == vehicleId }) else { return }
+        _ = AIMaintenanceAnalyzer.clearCache()
+        do {
+            let result = try await AIMaintenanceAnalyzer.analyze(
+                vehicle: vehicle, answers: [:], oilMileage: "", brakeMileage: ""
+            )
+            maintenanceItems.removeAll { $0.vehicleId == vehicleId && $0.category.hasPrefix("ai-") }
+            maintenanceItems.append(contentsOf: result.items)
+            oemSchedules[vehicleId] = result.schedule
+            oemSources[vehicleId] = result.sources
+            print("🔧 [Debug] Refreshed schedule: \(result.schedule.count) items")
+        } catch {
+            print("🔧 [Debug] Schedule refresh failed: \(error)")
+        }
+    }
+    #endif
+
     /// Returns (name, description, category) for a skipped baseline service category.
     private func baselineAttentionInfo(for category: ServiceCategory) -> (String, String, String) {
         switch category {
@@ -331,15 +426,35 @@ class AppState {
     }
 
     func updateMileage(_ mileage: Int) {
-        guard let index = vehicles.firstIndex(where: { $0.id == selectedVehicleId }) else { return }
+        guard let id = selectedVehicleId ?? vehicles.first?.id else { return }
+        updateMileage(mileage, for: id)
+    }
+
+    func updateMileage(_ mileage: Int, for vehicleId: UUID) {
+        guard let index = vehicles.firstIndex(where: { $0.id == vehicleId }) else { return }
         vehicles[index].mileage = mileage
         vehicles[index].mileageUpdatedAt = .now
+        askForReminderPermission()
+    }
+
+    /// The user confirmed the saved odometer is still right — just record today's date.
+    func confirmMileage(for vehicleId: UUID) {
+        guard let index = vehicles.firstIndex(where: { $0.id == vehicleId }) else { return }
+        vehicles[index].mileageUpdatedAt = .now
+        askForReminderPermission()
     }
 
     // MARK: - Demo Mode
 
     private func loadDemoData() {
-        vehicles = DemoData.vehicles
+        var demoVehicles = DemoData.vehicles
+        #if DEBUG
+        if let days = MileageReminder.debugAgeDays {
+            let date = Calendar.current.date(byAdding: .day, value: -days, to: .now)
+            for index in demoVehicles.indices { demoVehicles[index].mileageUpdatedAt = date }
+        }
+        #endif
+        vehicles = demoVehicles
         serviceLogs = DemoData.serviceLogs
         maintenanceItems = DemoData.maintenanceItems
         selectedVehicleId = DemoData.vehicleHondaId
@@ -444,16 +559,14 @@ class AppState {
 
 enum AppTab: String, CaseIterable, Identifiable {
     case home = "Home"
-    case diagnose = "Diagnose"
-    case learn = "Learn"
     case garage = "Garage"
+    case learn = "Learn"
 
     var id: String { rawValue }
 
     var iconName: String {
         switch self {
         case .home: return "house.fill"
-        case .diagnose: return "exclamationmark.triangle.fill"
         case .learn: return "book.fill"
         case .garage: return "car.fill"
         }

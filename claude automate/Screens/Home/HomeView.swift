@@ -14,6 +14,7 @@ private extension Color {
 
 struct HomeView: View {
     @Environment(AppState.self) private var appState
+    @Environment(AuthState.self) private var authState
     @State private var showServiceHistory = false
 
     var body: some View {
@@ -29,7 +30,7 @@ struct HomeView: View {
             }
         }
         .scrollIndicators(.hidden)
-        .background(homeBackground.ignoresSafeArea())
+        .appBackground()
         .toolbar(.hidden, for: .navigationBar)
         .navigationDestination(isPresented: $showServiceHistory) {
             if let vehicle = appState.selectedVehicle {
@@ -52,25 +53,13 @@ struct HomeView: View {
             }
             .padding(.top, 17)
 
-            statsCard(summary)
+            statsCard(summary, vehicle: vehicle)
 
             servicesGrid
                 .padding(.top, 12)
         }
         .padding(.horizontal, 24)
         .padding(.bottom, 32)
-    }
-
-    private var homeBackground: some View {
-        // CSS: linear-gradient(9.59deg, white@0.2 → rgb(151,141,141)@0.2) over white.
-        ZStack {
-            Color.white
-            LinearGradient(
-                colors: [Color.white.opacity(0.2), Color(red: 151/255, green: 141/255, blue: 141/255).opacity(0.2)],
-                startPoint: UnitPoint(x: 0.42, y: 1),
-                endPoint: UnitPoint(x: 0.58, y: 0)
-            )
-        }
     }
 
     // MARK: - Header
@@ -141,7 +130,7 @@ struct HomeView: View {
 
     // MARK: - Stats
 
-    private func statsCard(_ summary: HomeVehicleSummary) -> some View {
+    private func statsCard(_ summary: HomeVehicleSummary, vehicle: Vehicle) -> some View {
         VStack(spacing: 14) {
             statColumns(summary)
 
@@ -150,7 +139,7 @@ struct HomeView: View {
                 .frame(height: 0.77)
                 .padding(.horizontal, 12)
 
-            mileageFreshnessRow(summary)
+            mileageFreshnessRow(summary, vehicle: vehicle)
                 .padding(.horizontal, 12)
         }
         .padding(.horizontal, 4.77)
@@ -160,30 +149,101 @@ struct HomeView: View {
         .overlay(RoundedRectangle(cornerRadius: 20).strokeBorder(Color.homeStatsBorder, lineWidth: 1))
     }
 
-    /// "Odometer updated 3 weeks ago · Update" — nudges users to keep mileage current.
-    private func mileageFreshnessRow(_ summary: HomeVehicleSummary) -> some View {
-        let isStale = summary.mileageIsStale
-        return Button { appState.showMileageUpdater = true } label: {
-            HStack(spacing: 6) {
-                Image(systemName: isStale ? "exclamationmark.circle" : "clock")
-                    .font(.system(size: 12, weight: .medium))
-                Text(summary.mileageUpdatedText)
-                    .font(.quicksand(.medium, size: 12))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.85)
-                Spacer(minLength: 8)
-                Text("Update")
-                    .font(.quicksand(.bold, size: 12))
-                    .foregroundStyle(Color.homeInk)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(Color.homeInk)
+    /// Fresh: "Odometer updated 3 weeks ago · Update". After 28 days: a one-tap check-in.
+    @ViewBuilder
+    private func mileageFreshnessRow(_ summary: HomeVehicleSummary, vehicle: Vehicle) -> some View {
+        if summary.mileageIsStale {
+            mileageCheckInPrompt(summary, vehicle: vehicle)
+        } else {
+            Button { appState.showMileageUpdater = true } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "clock")
+                        .font(.system(size: 12, weight: .medium))
+                    Text(summary.mileageUpdatedText)
+                        .font(.quicksand(.medium, size: 12))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
+                    Spacer(minLength: 8)
+                    Text("Update")
+                        .font(.quicksand(.bold, size: 12))
+                        .foregroundStyle(Color.homeInk)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(Color.homeInk)
+                }
+                .foregroundStyle(Color.homeLabel)
+                .contentShape(Rectangle())
             }
-            .foregroundStyle(isStale ? Color.agWarning : Color.homeLabel)
-            .contentShape(Rectangle())
+            .buttonStyle(.plain)
+            .accessibilityLabel("\(summary.mileageUpdatedText). Update odometer")
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel("\(summary.mileageUpdatedText). Update odometer")
+    }
+
+    /// "Is your odometer about 48,100 mi?" with Yes / Enter exact (GoodRx/Noom-style confirm).
+    private func mileageCheckInPrompt(_ summary: HomeVehicleSummary, vehicle: Vehicle) -> some View {
+        let estimate = summary.estimatedMileage
+        let question = estimate.map { "Is your odometer about \($0.formatted()) mi?" }
+            ?? "Is \(summary.mileage.formatted()) mi still right?"
+        let hint = estimate != nil
+            ? "Based on ~\(summary.annualMiles.formatted()) mi a year. Check your dashboard to be exact."
+            : "Check your dashboard. Keeping it current keeps your service plan accurate."
+
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Image(systemName: "gauge.with.needle")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(Color.agWarning)
+                Text(question)
+                    .font(.quicksand(.bold, size: 14))
+                    .foregroundStyle(Color.homeInk)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            HStack(spacing: 8) {
+                Button {
+                    confirmMileage(estimate, vehicle: vehicle)
+                } label: {
+                    Text(estimate != nil ? "Yes, about right" : "Yes, still right")
+                        .font(.quicksand(.semibold, size: 13))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 36)
+                        .background(Color.homeInk, in: RoundedRectangle(cornerRadius: 12))
+                }
+                .buttonStyle(ScaleButtonStyle())
+
+                Button { appState.showMileageUpdater = true } label: {
+                    Text("Enter exact")
+                        .font(.quicksand(.semibold, size: 13))
+                        .foregroundStyle(Color.homeInk)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 36)
+                        .background(Color.white, in: RoundedRectangle(cornerRadius: 12))
+                        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.homeHairline, lineWidth: 1))
+                }
+                .buttonStyle(ScaleButtonStyle())
+            }
+
+            Text(hint)
+                .font(.quicksand(.medium, size: 11))
+                .foregroundStyle(Color.homeLabel)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func confirmMileage(_ estimate: Int?, vehicle: Vehicle) {
+        if let estimate {
+            appState.updateMileage(estimate, for: vehicle.id)
+        } else {
+            appState.confirmMileage(for: vehicle.id)
+        }
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        if !appState.isDemo,
+           let userId = authState.currentUser?.id,
+           let saved = appState.vehicles.first(where: { $0.id == vehicle.id }) {
+            Task { await SupabaseManager.upsertVehicle(saved, userId: userId) }
+        }
     }
 
     private func statColumns(_ summary: HomeVehicleSummary) -> some View {
@@ -254,7 +314,7 @@ struct HomeView: View {
                     imageOffset: CGPoint(x: -14, y: -5),
                     title: "Diagnose",
                     subtitle: "Dashboard lights and noises"
-                ) { appState.selectedTab = .diagnose }
+                ) { appState.selectedTab = .learn }
             }
             .frame(maxWidth: .infinity)
         }
@@ -389,18 +449,21 @@ struct HomeVehicleSummary {
     let statusText: String
     let nextServiceMileage: Int?
     let mileageUpdatedText: String
+    /// True after MileageReminder.staleAfterDays (28) without an update, or when unknown.
     let mileageIsStale: Bool
-
-    /// After this long without an odometer update, the row turns amber.
-    static let staleAfterDays = 60
+    /// Likely current odometer from the yearly-miles choice; nil if we don't know when it was read.
+    let estimatedMileage: Int?
+    let annualMiles: Int
 
     init(vehicle: Vehicle, appState: AppState, now: Date = .now) {
         // Estimated mileage = the odometer entered when the car was added
         // (updated via the mileage sheet).
         mileage = vehicle.mileage
+        mileageIsStale = MileageReminder.isStale(vehicle, now: now)
+        estimatedMileage = MileageReminder.estimatedMileage(for: vehicle, now: now)
+        annualMiles = MileageReminder.annualMiles(for: vehicle)
 
         if let updated = vehicle.mileageUpdatedAt {
-            let days = Calendar.current.dateComponents([.day], from: updated, to: now).day ?? 0
             if Calendar.current.isDate(updated, inSameDayAs: now) {
                 mileageUpdatedText = "Odometer updated today"
             } else {
@@ -408,11 +471,8 @@ struct HomeVehicleSummary {
                 formatter.unitsStyle = .full
                 mileageUpdatedText = "Odometer updated \(formatter.localizedString(for: updated, relativeTo: now))"
             }
-            mileageIsStale = days >= Self.staleAfterDays
         } else {
-            // Saved before update dates were tracked — we don't know how old it is.
-            mileageUpdatedText = "Confirm your current odometer"
-            mileageIsStale = true
+            mileageUpdatedText = "Odometer not confirmed yet"
         }
 
         let overdue = appState.overdueItems(for: vehicle.id).count
@@ -428,36 +488,18 @@ struct HomeVehicleSummary {
         nextServiceMileage = Self.nextServiceMileage(vehicle: vehicle, appState: appState)
     }
 
+    /// Next milestone from the same plan the Service Logbook shows, so Home and the
+    /// logbook always agree.
     private static func nextServiceMileage(vehicle: Vehicle, appState: AppState) -> Int? {
         let current = vehicle.mileage
-        var candidates: [Int] = []
-
-        for item in appState.oemSchedule(for: vehicle.id) ?? [] where !item.severeOnly {
-            switch item.type {
-            case .recurring:
-                if let interval = item.intervalMiles, interval > 0 {
-                    candidates.append((current / interval + 1) * interval)
-                }
-            case .oneTime:
-                if let first = item.firstDueMiles, first > current {
-                    candidates.append(first)
-                }
-            case .recurringAfterFirst:
-                guard let first = item.firstDueMiles else { continue }
-                if first > current {
-                    candidates.append(first)
-                } else if let interval = item.subsequentIntervalMiles ?? item.intervalMiles, interval > 0 {
-                    candidates.append(first + ((current - first) / interval + 1) * interval)
-                }
-            }
+        if let schedule = appState.oemSchedule(for: vehicle.id), !schedule.isEmpty {
+            let plan = ServicePlanBuilder.build(items: schedule, currentMileage: current)
+            if let next = plan.upcomingMilestones.first?.mileage { return next }
         }
-
-        if candidates.isEmpty {
-            candidates = appState.maintenanceItems(for: vehicle.id)
-                .compactMap(\.dueMileage)
-                .filter { $0 > current }
-        }
-        return candidates.min()
+        return appState.maintenanceItems(for: vehicle.id)
+            .compactMap(\.dueMileage)
+            .filter { $0 > current }
+            .min()
     }
 }
 
@@ -759,4 +801,5 @@ struct ScaleButtonStyle: ButtonStyle {
         HomeView()
     }
     .environment(state)
+    .environment(AuthState())
 }

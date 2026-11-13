@@ -81,6 +81,18 @@ enum AIMaintenanceAnalyzer {
         let search_results: [SearchResult]?
     }
 
+    /// One server-sent event of a streamed reply. Content arrives in pieces in `delta`;
+    /// citations repeat on every chunk.
+    private struct StreamChunk: Decodable {
+        struct Choice: Decodable {
+            struct Delta: Decodable { let content: String? }
+            let delta: Delta?
+        }
+        let choices: [Choice]?
+        let citations: [String]?
+        let search_results: [ChatCompletionResponse.SearchResult]?
+    }
+
     /// The model's answer plus the web pages Perplexity grounded it on.
     private struct PerplexityReply {
         let content: String
@@ -90,11 +102,14 @@ enum AIMaintenanceAnalyzer {
     /// Converts Perplexity's top-level citations into footer sources. Used when
     /// the model omits the `sources` array from its JSON, so the Service Plan
     /// can still show where the schedule came from.
-    private static func sourcesFromCitations(_ completion: ChatCompletionResponse) -> [OEMSource] {
+    private static func sourcesFromCitations(
+        searchResults: [ChatCompletionResponse.SearchResult]?,
+        citations: [String]?
+    ) -> [OEMSource] {
         var seen = Set<String>()
         var result: [OEMSource] = []
-        let pairs: [(String?, String)] = completion.search_results?.map { ($0.title, $0.url) }
-            ?? (completion.citations ?? []).map { (nil, $0) }
+        let pairs: [(String?, String)] = searchResults?.map { ($0.title, $0.url) }
+            ?? (citations ?? []).map { (nil, $0) }
         for (title, url) in pairs where seen.insert(url).inserted {
             let host = URL(string: url)?.host?.replacingOccurrences(of: "www.", with: "")
             let trimmed = title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
@@ -227,7 +242,7 @@ enum AIMaintenanceAnalyzer {
             print("  [\(item.status.rawValue)] \(item.name) — due: \(item.dueMileage.map { "\($0) mi" } ?? "n/a")")
         }
 
-        let schedule = oemSchedule.maintenance_items.map(oemItemToScheduleInput)
+        let schedule = oemSchedule.maintenance_items.map { oemItemToScheduleInput($0, vehicle: vehicle) }
         let sources = (oemSchedule.sources ?? []).map {
             OEMScheduleSource(type: $0.type, name: $0.name, url: $0.url)
         }
@@ -236,18 +251,186 @@ enum AIMaintenanceAnalyzer {
 
     // MARK: - Phase 1: OEM Schedule Research (Perplexity sonar-pro with web search)
 
+    /// Step 1 of 2: a short, focused web search for the schedule in plain language.
+    ///
+    /// Asking for the whole JSON structure in one request makes the model rely on the first
+    /// source it finds (the owner's manual, which for Maintenance Minder / oil-life cars has
+    /// dashboard codes but no mileages) and skip dealer pages that list mileage milestones.
+    /// A narrow question finds those pages. Returns nil on any failure so we fall back to the
+    /// single-request behaviour.
+    private static func researchSchedule(vehicle: Vehicle) async -> String? {
+        let name = "\(vehicle.year) \(vehicle.make) \(vehicle.model) \(vehicle.trim ?? "")"
+            .trimmingCharacters(in: .whitespaces)
+        let vin = (vehicle.vin?.isEmpty == false) ? " (VIN \(vehicle.vin!))" : ""
+        let question = """
+        Find the maintenance schedule for a \(name)\(vin).
+
+        Check, in order: (1) the official owner's manual or warranty & maintenance guide, \
+        (2) dealer service pages — especially ones that list MILEAGE MILESTONES such as \
+        7,500 / 15,000 / 30,000 / 45,000 / 60,000 miles and what is done at each, \
+        (3) specialist maintenance-schedule sites.
+
+        For every service item (oil and filter, tire rotation, air and cabin filters, brake \
+        fluid, transmission / transfer case / differential fluid, coolant, spark plugs, \
+        timing belt, belts, brake / suspension / steering / exhaust inspections, etc.) give: \
+        the mileage(s) it is due, whether and how often it repeats, and the page it came from.
+
+        If the owner's manual only gives dashboard codes (Maintenance Minder, oil-life \
+        monitor), say which codes AND give the mileage milestones from the dealer pages. \
+        Where sources disagree, list each value and say which source is official. \
+        Quote mileages exactly. Do not guess.
+        """
+
+        let body: [String: Any] = [
+            "model": "sonar-pro",
+            "messages": [
+                ["role": "system", "content": "You are a vehicle maintenance researcher. Answer only from pages you find. Quote mileages exactly. Do not guess."],
+                ["role": "user", "content": question]
+            ],
+            "temperature": 0.1,
+            "max_tokens": 3000
+        ]
+        // Runs alongside the research: step 1's citations vary between runs and often
+        // leave out the dealer pages that carry the milestone table.
+        async let dealerSearch = searchDealerPages(vehicle: vehicle)
+        do {
+            let reply = try await callPerplexityAPI(body: body, timeout: 90)
+            let pages = reply.citations
+                .compactMap { source in source.url.map { "- \(source.name): \($0)" } }
+                .joined(separator: "\n")
+            print("🔧 [AIAnalyzer] Step 1 research found \(reply.citations.count) pages")
+            var notes = reply.content + (pages.isEmpty ? "" : "\n\nPAGES CONSULTED:\n" + pages)
+            let extracts = await readDealerPages(vehicle: vehicle, candidates: reply.citations + dealerSearch)
+            if !extracts.isEmpty {
+                notes += "\n\nDEALER PAGE EXTRACTS (read directly from the page — these are the authoritative mileages):\n\n"
+                    + extracts.joined(separator: "\n\n")
+            }
+            return notes
+        } catch {
+            print("🔧 [AIAnalyzer] Step 1 research failed (\(error.localizedDescription)) — using single-request lookup")
+            return nil
+        }
+    }
+
+    /// A short search whose only job is to surface dealer pages listing the
+    /// mileage-by-mileage schedule. Only the citations are used.
+    private static func searchDealerPages(vehicle: Vehicle) async -> [OEMSource] {
+        let make = vehicle.make.lowercased().replacingOccurrences(of: " ", with: "")
+        // Leave out the manufacturer, manual and aggregator sites that otherwise fill every
+        // result slot, so the search returns dealer pages. (Perplexity allows 20 entries.)
+        let excluded = ["\(make).com", "\(make).ca", "\(make)infocenter.com", "kbb.com", "edmunds.com",
+                        "yourmechanic.com", "garagedex.com", "maintenance-schedule.com", "manualslib.com",
+                        "manuals.plus", "ifixit.com", "carmanualsonline.info", "reddit.com", "youtube.com",
+                        "cars.com", "repairpal.com", "carwhere.com", "carcomplaints.com"]
+        let body: [String: Any] = [
+            "model": "sonar",
+            "temperature": 0.1,
+            "max_tokens": 300,
+            "search_domain_filter": excluded.map { "-" + $0 },
+            "messages": [
+                ["role": "user", "content": "Which \(vehicle.make) dealership service pages publish the \(vehicle.make) \(vehicle.model) maintenance schedule by mileage (7,500 / 15,000 / 30,000 / 60,000 miles)? List the pages."]
+            ]
+        ]
+        return (try? await callPerplexityAPI(body: body, timeout: 60))?.citations ?? []
+    }
+
+    /// Dealer service pages for this exact model that publish a mileage-milestone table.
+    /// The host must name the make (e.g. "autonationacura…") and the URL must name the
+    /// model and "maintenance", so generic schedule sites and other models are skipped.
+    private static func dealerPages(for vehicle: Vehicle, in sources: [OEMSource]) -> [URL] {
+        let make = vehicle.make.lowercased().replacingOccurrences(of: " ", with: "")
+        let model = vehicle.model.lowercased()
+            .replacingOccurrences(of: " ", with: "-")
+        var seenHosts = Set<String>()
+        return sources.compactMap { source -> URL? in
+            guard let raw = source.url, let url = URL(string: raw), let host = url.host?.lowercased() else { return nil }
+            let path = url.path.lowercased()
+            // Skip pages for a different model year (e.g. ".../2026-acura-mdx-maintenance...").
+            let years = path.matches(of: /(?:19|20)\d{2}/).map { String($0.output) }
+            guard host.contains(make),
+                  path.contains(model) || path.contains(model.replacingOccurrences(of: "-", with: "")),
+                  path.contains("maintenance"),
+                  years.allSatisfy({ $0 == String(vehicle.year) }),
+                  seenHosts.insert(host).inserted
+            else { return nil }
+            return url
+        }
+    }
+
+    /// True when an extract is a mileage-milestone table: at least four headings that name
+    /// a mileage (e.g. "## 15,000 Mile Service"), none of them "Every …" style. Generic
+    /// "every 6 months or 7,500 miles" guides don't qualify.
+    private static func isMilestoneTable(_ text: String) -> Bool {
+        let headings = text.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { $0.hasPrefix("#") || ($0.hasPrefix("**") && $0.hasSuffix("**")) }
+        if headings.contains(where: { $0.lowercased().contains("every") }) { return false }
+        let milestones = Set(headings.compactMap { heading -> String? in
+            heading.firstMatch(of: /\d{1,3},\d{3}/).map { String($0.output) }
+        })
+        return milestones.count >= 4
+    }
+
+    /// Reads dealer pages through Perplexity restricted to that one site, asking for the
+    /// milestone table exactly as written. Page retrieval is flaky ("could not access the
+    /// page"), so each page gets a second try, and we move down the list until one page
+    /// yields a real milestone table. Only one table is used: dealer pages disagree with
+    /// each other, and merging two of them muddles the schedule.
+    private static func readDealerPages(vehicle: Vehicle, candidates: [OEMSource]) async -> [String] {
+        // Structured dealer service pages before blog posts.
+        let pages = dealerPages(for: vehicle, in: candidates)
+            .sorted { ($0.path.contains("/service/") ? 0 : 1) < ($1.path.contains("/service/") ? 0 : 1) }
+        print("🔧 [AIAnalyzer] Dealer pages to read: \(pages.map(\.absoluteString))")
+        let modelName = "\(vehicle.make) \(vehicle.model)"
+        var attempts = 0
+
+        for url in pages {
+            let host = url.host?.replacingOccurrences(of: "www.", with: "") ?? ""
+            for _ in 0..<2 where attempts < 4 {
+                attempts += 1
+                let body: [String: Any] = [
+                    "model": "sonar-pro",
+                    "temperature": 0.1,
+                    "max_tokens": 3000,
+                    "search_domain_filter": [host],
+                    // The milestone tables are long; the default context drops the later rows.
+                    "web_search_options": ["search_context_size": "high"],
+                    "messages": [
+                        ["role": "system", "content": "You extract maintenance schedules from web pages. Report only what the page says. Quote mileages and service names exactly. Do not add anything from other knowledge."],
+                        ["role": "user", "content": "Read the \(modelName) maintenance schedule page at \(url.absoluteString). For EVERY mileage milestone it lists, from the first to the last, write the milestone as a markdown heading (e.g. \"## 15,000 Mile Service\") and list exactly which services the page says are done at it. If the page has no mileage milestones or you cannot read it, reply only: NO MILESTONES. Then say whether the page names a model year."]
+                    ]
+                ]
+                guard let reply = try? await callPerplexityAPI(body: body, timeout: 90) else { continue }
+                let text = reply.content.trimmingCharacters(in: .whitespacesAndNewlines)
+                if isMilestoneTable(text) {
+                    print("🔧 [AIAnalyzer] Milestone table read from \(host) (attempt \(attempts))")
+                    return ["SOURCE: \(url.absoluteString)\n\(text)"]
+                }
+                // A readable page with no table won't change on retry.
+                if !text.lowercased().contains("could not") && !text.lowercased().contains("cannot") { break }
+            }
+        }
+        print("🔧 [AIAnalyzer] No dealer milestone table found after \(attempts) reads")
+        return []
+    }
+
     private static func fetchOEMSchedule(vehicle: Vehicle) async throws -> OEMScheduleResponse {
-        let requestBody: [String: Any] = [
+        let notes = await researchSchedule(vehicle: vehicle)
+
+        var requestBody: [String: Any] = [
             "model": "sonar-pro",
             "messages": [
                 ["role": "system", "content": oemSystemPrompt],
-                ["role": "user", "content": buildOEMUserPrompt(vehicle: vehicle)]
+                ["role": "user", "content": buildOEMUserPrompt(vehicle: vehicle, researchNotes: notes)]
             ],
             "temperature": 0.1,
-            "max_tokens": 4096
+            // A full schedule runs to ~25 items; 4,096 tokens cut the JSON off mid-string.
+            "max_tokens": 8192
         ]
+        // Step 2 only converts the notes into the structure — no need to search again.
+        if notes != nil { requestBody["disable_search"] = true }
 
-        let reply = try await callPerplexityAPI(body: requestBody, timeout: 90)
+        // Writing ~25 items of JSON can take well over a minute.
+        let reply = try await callPerplexityAPI(body: requestBody, timeout: 180)
         let content = reply.content
         let jsonString = extractJSON(from: content)
 
@@ -391,21 +574,16 @@ enum AIMaintenanceAnalyzer {
                 continue
             }
 
-            let interval = effectiveInterval(for: oemItem, severe: hasSevere)
-            guard interval > 0 else {
-                // No mileage interval — default to overdue with generic description
-                items.append(makeItem(
-                    oemItem: oemItem, vehicle: vehicle, status: .overdue, dueMileage: nil,
-                    description: "\(oemItem.name) — no mileage interval found. Recommend inspection."
-                ))
-                continue
-            }
+            // Schedule shape with gaps filled: months-only intervals converted to miles,
+            // and a typical interval when the OEM gives none (Maintenance Minder cars).
+            let scheduleItem = oemItemToScheduleInput(oemItem, vehicle: vehicle)
+            let interval = scheduleItem.resolvedIntervalMiles ?? 0
 
             let history = categoryToHistory[oemItem.category]
             let answer = history.flatMap { answers[$0.answerKey] }
             let lastMileage = history?.lastMileage
 
-            if let lastMileage {
+            if interval > 0, let lastMileage {
                 // We have exact mileage — do precise math
                 let nextDue = lastMileage + interval
                 let remaining = nextDue - currentMileage
@@ -430,7 +608,7 @@ enum AIMaintenanceAnalyzer {
                     oemItem: oemItem, vehicle: vehicle, status: status, dueMileage: nextDue,
                     description: description
                 ))
-            } else if let answer, answer != "unknown" {
+            } else if interval > 0, let answer, answer != "unknown" {
                 // Time-based answer only — estimate status from the bucket
                 let (status, description) = statusFromTimeBucket(
                     answer: answer, category: oemItem.category, itemName: oemItem.name,
@@ -443,23 +621,23 @@ enum AIMaintenanceAnalyzer {
                     description: description
                 ))
             } else {
-                // Unknown or no matching history
+                // No usable history: place the item on its schedule. It only counts as
+                // overdue if we asked about this kind of service, the user didn't know,
+                // and a scheduled occurrence has already passed. A one-time item that
+                // isn't due yet (spark plugs at 105k on a 56k car) is on track.
+                let result = MaintenanceScheduleMath.scheduleStatus(
+                    for: scheduleItem,
+                    currentMileage: currentMileage,
+                    historyUnknown: history != nil
+                )
                 items.append(makeItem(
-                    oemItem: oemItem, vehicle: vehicle, status: .overdue, dueMileage: nil,
-                    description: "No service history recorded. \(interval.formatted())-mile interval — recommend inspection."
+                    oemItem: oemItem, vehicle: vehicle, status: result.status,
+                    dueMileage: result.dueMileage, description: result.description
                 ))
             }
         }
 
         return items
-    }
-
-    /// Returns the effective interval in miles.
-    /// New schema no longer has per-item severe intervals — `severe_only` is a binary
-    /// flag indicating an item only applies under severe conditions (handled upstream
-    /// by skipping the item entirely). The `severe` parameter is kept for API stability.
-    private static func effectiveInterval(for item: OEMMaintenanceItem, severe: Bool) -> Int {
-        return item.subsequent_interval_miles ?? item.interval_miles ?? 0
     }
 
     /// Maps a time-bucket answer to a status and description string.
@@ -535,48 +713,67 @@ enum AIMaintenanceAnalyzer {
 
     // MARK: - Perplexity API Call (OpenAI-compatible)
 
+    /// Calls Perplexity with a streamed reply. Streaming keeps bytes flowing while a long
+    /// answer is written — a non-streamed request sits silent for a minute or more and the
+    /// connection gets dropped. `timeout` is the longest allowed gap between bytes.
     private static func callPerplexityAPI(body: [String: Any], timeout: TimeInterval) async throws -> PerplexityReply {
+        var body = body
+        body["stream"] = true
         var request = URLRequest(url: endpoint)
         request.httpMethod = "POST"
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
         request.timeoutInterval = timeout
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
         print("🔧 [AIAnalyzer] Calling Perplexity API...")
         let callStart = Date()
-        let (data, response) = try await URLSession.shared.data(for: request)
-        let durationMs = Int(Date().timeIntervalSince(callStart) * 1000)
+        // A fresh session per call: reusing the shared pooled connection for these long
+        // requests stalled after the first call (status 200, then no bytes) or dropped it.
+        let session = URLSession(configuration: .ephemeral)
+        defer { session.finishTasksAndInvalidate() }
+        let (bytes, response) = try await session.bytes(for: request)
 
-        let httpResponse = response as? HTTPURLResponse
-        print("🔧 [AIAnalyzer] Response status: \(httpResponse?.statusCode ?? -1)")
-
-        // Log the FULL raw JSON response
-        if let rawJSON = String(data: data, encoding: .utf8) {
-            print("🔧 [AIAnalyzer] ═══════════ RAW PERPLEXITY RESPONSE ═══════════")
-            print(rawJSON)
-            print("🔧 [AIAnalyzer] ═══════════ END RAW RESPONSE ═══════════")
-        }
-
-        if let statusCode = httpResponse?.statusCode, statusCode != 200 {
+        let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
+        print("🔧 [AIAnalyzer] Response status: \(statusCode)")
+        if statusCode != 200 {
+            var errorBody = ""
+            for try await line in bytes.lines { errorBody += line }
+            print("🔧 [AIAnalyzer] Error body: \(errorBody.prefix(500))")
             AnalyticsService.shared.track(.perplexityCallFailed(reason: "HTTP \(statusCode)"))
             throw AnalyzerError.apiError
         }
 
-        let completion = try JSONDecoder().decode(ChatCompletionResponse.self, from: data)
-        guard let content = completion.choices.first?.message.content else {
+        var content = ""
+        var citations: [String]?
+        var searchResults: [ChatCompletionResponse.SearchResult]?
+        let decoder = JSONDecoder()
+        for try await line in bytes.lines {
+            guard line.hasPrefix("data:") else { continue }
+            let payload = line.dropFirst(5).trimmingCharacters(in: .whitespaces)
+            if payload == "[DONE]" { break }
+            guard let chunk = try? decoder.decode(StreamChunk.self, from: Data(payload.utf8)) else { continue }
+            content += chunk.choices?.first?.delta?.content ?? ""
+            if let c = chunk.citations, !c.isEmpty { citations = c }
+            if let r = chunk.search_results, !r.isEmpty { searchResults = r }
+        }
+        let durationMs = Int(Date().timeIntervalSince(callStart) * 1000)
+
+        guard !content.isEmpty else {
             print("🔧 [AIAnalyzer] No content in response")
             AnalyticsService.shared.track(.perplexityCallFailed(reason: "no content in response"))
             throw AnalyzerError.invalidResponse
         }
 
         AnalyticsService.shared.track(.perplexityCallSucceeded(durationMs: durationMs))
-
-        // Log the extracted content (the actual AI answer)
-        print("🔧 [AIAnalyzer] ═══════════ EXTRACTED CONTENT ═══════════")
+        print("🔧 [AIAnalyzer] ═══════════ EXTRACTED CONTENT (\(durationMs) ms) ═══════════")
         print(content)
         print("🔧 [AIAnalyzer] ═══════════ END CONTENT ═══════════")
-        return PerplexityReply(content: content, citations: sourcesFromCitations(completion))
+        return PerplexityReply(
+            content: content,
+            citations: sourcesFromCitations(searchResults: searchResults, citations: citations)
+        )
     }
 
     /// Extracts JSON object from a string that may contain markdown, code fences, or surrounding text.
@@ -612,6 +809,7 @@ enum AIMaintenanceAnalyzer {
     Return ONLY valid JSON matching the requested schema. \
     No markdown, no code fences, no explanation text before or after the JSON. \
     NEVER return an error object — always return the maintenance schedule. \
+    When research notes are provided, build the schedule from them and do not search again. \
     If you cannot access a PDF, use dealer websites, KBB, Youtube, Edmunds, RepairPal, \
     manufacturer service bulletins, and enthusiast forums to compile the schedule. \
     The maintenance intervals for popular vehicles are widely published across \
@@ -620,7 +818,28 @@ enum AIMaintenanceAnalyzer {
 
     // MARK: - User Prompts
 
-    private static func buildOEMUserPrompt(vehicle: Vehicle) -> String {
+    private static func buildOEMUserPrompt(vehicle: Vehicle, researchNotes: String? = nil) -> String {
+        let notesSection: String = researchNotes.map {
+            """
+
+            RESEARCH NOTES — already gathered from the pages listed below. Build the schedule \
+            from these notes and do not search again. List the pages that supplied mileages \
+            in "sources" (keep their URLs). If the notes contain DEALER PAGE EXTRACTS, those \
+            were read directly from the page: take every mileage from them exactly — an item's \
+            first due mileage is the first milestone it appears at, and its repeat interval is \
+            the gap between the milestones it appears at (e.g. listed at 15k, 45k, 75k, 105k → \
+            first 15,000, every 30,000; listed at 30k, 60k, 90k → first 30,000, every 30,000). \
+            An item listed at two or more milestones is ALWAYS "recurring", never "one_time". \
+            The extracts may come from several pages: give ONE item per service — merge \
+            "Inspect brake lines" and "Brake hoses and lines", "Replace air filter" and \
+            "Engine air filter", and so on — keeping the most complete milestone list. \
+            Use the rest of the notes only for items the extracts do not cover. If notes \
+            conflict elsewhere, prefer the dealer page.
+
+            \($0)
+
+            """
+        } ?? ""
         let year = vehicle.year
         let make = vehicle.make
         let model = vehicle.model
@@ -637,6 +856,7 @@ enum AIMaintenanceAnalyzer {
         Vehicle: \(year) \(make) \(model) \(trim)
         \(vinLine)
 
+        \(notesSection)
         Find the official manufacturer warranty & maintenance guide for this exact vehicle.
         Cross-reference at least 2-3 sources. Prioritize in this order:
         1. Official OEM owner's manual or warranty & maintenance guide PDF
@@ -644,12 +864,34 @@ enum AIMaintenanceAnalyzer {
         3. Specialist repair sites (e.g. Firestone, RepairPal)
         4. Enthusiast forums that reference the actual owner's manual intervals
 
-        Use the actual OEM schedule — do NOT invent generic intervals. If sources conflict,
-        prefer the official OEM manual over dealer pages, and dealer pages over forums.
+        Use the actual published schedule — do NOT invent intervals. If sources conflict,
+        prefer the official OEM manual over dealer pages, and dealer pages over forums —
+        EXCEPT for mileage numbers when the manual has none (see CONDITION-BASED CARS below).
 
-        IMPORTANT: Return the schedule as a FLAT LIST OF MAINTENANCE ITEMS, each with its own
-        interval data. Do NOT return milestone snapshots (e.g. "at 10,000 miles do X, Y, Z").
-        Instead, return each item ONCE with its recurrence pattern.
+        CONDITION-BASED CARS (Honda/Acura "Maintenance Minder", GM "Oil Life Monitor",
+        BMW "Condition Based Service", etc.): the owner's manual often gives only dashboard
+        codes and NO fixed mileages. That does NOT mean there are no mileages. Dealers and
+        specialist sites publish the same schedule as a MILESTONE TABLE
+        ("7,500 miles: oil, tire rotation… 15,000 miles: … 30,000 miles: …"). When the manual
+        has no mileage for an item you MUST search for and read such a dealer or specialist
+        milestone table for this vehicle, and take the mileages from it. Do not stop at the
+        manual. Cite the dealer/specialist page in "sources".
+
+        IMPORTANT: The OUTPUT must be a FLAT LIST OF MAINTENANCE ITEMS, each returned ONCE with
+        its recurrence pattern — never as milestone snapshots. You MAY read milestone tables
+        as input, but you must convert them into recurrence. Work out each item's cycle from
+        every milestone where it appears:
+        - oil + tire rotation at 7,500, 15,000, 22,500… → "recurring", interval 7,500
+        - rear differential fluid at 15,000, 45,000, 75,000, 105,000 →
+          "recurring_after_first", first_due 15,000, subsequent interval 30,000
+        - brake fluid at 45,000 and 90,000 → "recurring", interval 45,000
+        - transmission fluid at 60,000 only → "one_time" at 60,000 (or "recurring" if the
+          source says it repeats)
+        - timing belt at 105,000 only → "one_time" at 105,000
+        Only use a mileage that a source actually states or that follows directly from the
+        milestone table. NEVER make up a mileage. If, after checking dealer/specialist pages,
+        an item truly has no mileage anywhere, leave both interval fields null and say in
+        "notes" that it is condition-based and follows the dashboard reminder.
 
         For each item, classify it as either:
         - "recurring": repeats on a fixed cycle (e.g. oil change every 10,000 miles)
@@ -669,6 +911,8 @@ enum AIMaintenanceAnalyzer {
           etc.), note that in the item name in parentheses
         - Do NOT combine separate items into one (e.g. "Engine Oil" and "Oil Filter" should be
           separate entries if the OEM lists them separately)
+        - Every mileage must come from a source you cite. Prefer a result with real numbers
+          from a dealer or specialist milestone table over a null.
         - Do NOT include cost estimates or DIY difficulty
         - Do NOT include administrative items like "Reset Maintenance Reminder" or "Inspect Floor
           Mat Installation"
@@ -797,15 +1041,24 @@ enum AIMaintenanceAnalyzer {
 
     // MARK: - OEM → ServicePlan bridge
 
-    private static func oemItemToScheduleInput(_ item: OEMMaintenanceItem) -> OEMScheduleItemInput {
-        OEMScheduleItemInput.make(
+    private static func oemItemToScheduleInput(_ item: OEMMaintenanceItem, vehicle: Vehicle) -> OEMScheduleItemInput {
+        // Time-only intervals ("every 3 years") become miles using the owner's yearly mileage.
+        let milesPerMonth = Double(MileageReminder.annualMiles(for: vehicle)) / 12
+        func miles(fromMonths months: Int?) -> Int? {
+            guard let months, months > 0 else { return nil }
+            return max(5_000, Int((Double(months) * milesPerMonth / 5_000).rounded()) * 5_000)
+        }
+        func positive(_ value: Int?) -> Int? { (value ?? 0) > 0 ? value : nil }
+
+        return OEMScheduleItemInput.make(
             name: item.name,
             action: item.action,
             category: item.category,
             type: item.type,
-            intervalMiles: item.interval_miles,
-            firstDueMiles: item.first_due_miles,
-            subsequentIntervalMiles: item.subsequent_interval_miles,
+            intervalMiles: positive(item.interval_miles) ?? miles(fromMonths: item.interval_months),
+            firstDueMiles: positive(item.first_due_miles) ?? miles(fromMonths: item.first_due_months),
+            subsequentIntervalMiles: positive(item.subsequent_interval_miles)
+                ?? miles(fromMonths: item.subsequent_interval_months),
             severeOnly: item.severe_only ?? false
         )
     }

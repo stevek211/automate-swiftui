@@ -54,19 +54,20 @@ enum ServicePlanBuilder {
     private static func dueMileages(for item: OEMScheduleItemInput, upTo maxMileage: Int) -> [Int] {
         switch item.type {
         case .oneTime:
-            if let first = item.firstDueMiles, first <= maxMileage { return [first] }
+            if let first = item.resolvedFirstDueMiles, first <= maxMileage { return [first] }
             return []
 
         case .recurring:
-            let interval = item.intervalMiles ?? item.subsequentIntervalMiles ?? 0
-            guard interval > 0 else { return [] }
-            let first = item.firstDueMiles ?? interval
+            // Falls back to a typical interval when the OEM gives none
+            // (Maintenance Minder / oil-life-monitor cars) — see MaintenanceScheduleMath.
+            guard let interval = item.resolvedIntervalMiles, interval > 0 else { return [] }
+            let first = item.resolvedFirstDueMiles ?? interval
+            guard first <= maxMileage else { return [] }
             return Array(stride(from: first, through: maxMileage, by: interval))
 
         case .recurringAfterFirst:
-            guard let first = item.firstDueMiles, first <= maxMileage else { return [] }
-            let interval = item.subsequentIntervalMiles ?? item.intervalMiles ?? 0
-            guard interval > 0 else { return [first] }
+            guard let first = item.resolvedFirstDueMiles, first <= maxMileage else { return [] }
+            guard let interval = item.resolvedIntervalMiles, interval > 0 else { return [first] }
             var dues: [Int] = [first]
             var cursor = first + interval
             while cursor <= maxMileage {

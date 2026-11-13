@@ -17,6 +17,8 @@ struct AddVehicleFlowView: View {
     @State private var selectedYear: Int? = nil
     @State private var selectedMake = ""
     @State private var selectedModel = ""
+    /// The user chose "Not listed? Type it in" on the Model menu.
+    @State private var isTypingModel = false
     @State private var selectedTrim = ""
     @State private var mileageInput = ""
     @State private var lookupManager = VehicleLookupManager()
@@ -132,15 +134,41 @@ struct AddVehicleFlowView: View {
         VStack(alignment: .leading, spacing: 4) {
             fieldLabel("VIN", required: false)
             HStack(spacing: 8) {
-                VINInputField(text: $vinInput, placeholder: "17-character VIN (optional)")
-                    .onChange(of: vinInput) { _, newValue in
+                // Standard TextField so the system edit menu (Copy / Paste), Cmd+V and
+                // simulator pasteboard sync all work. Pasted text is cleaned below:
+                // spaces/dashes dropped, uppercased, capped at 17.
+                TextField("17-character VIN (optional)", text: $vinInput)
+                    .font(.quicksand(.regular, size: 14))
+                    .foregroundStyle(Color.agForeground)
+                    .textInputAutocapitalization(.characters)
+                    .autocorrectionDisabled()
+                    .keyboardType(.asciiCapable)
+                    .submitLabel(.done)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .onChange(of: vinInput) { oldValue, newValue in
                         let capped = sanitizedVIN(newValue)
                         if capped != vinInput { vinInput = capped }
-                        if vinInput.count == 17 { Task { await decodeVIN() } }
+                        if capped.count == 17, sanitizedVIN(oldValue) != capped {
+                            Task { await decodeVIN() }
+                        }
                     }
                 if lookupManager.isDecodingVIN {
                     ProgressView().frame(width: 16, height: 16)
                 }
+                #if DEBUG
+                // Testing aid only — not shipped. In release builds users paste through
+                // the standard iOS edit menu (long-press → Paste) on the TextField above.
+                if !lookupManager.isDecodingVIN && vinInput.isEmpty {
+                    PasteButton(payloadType: String.self) { strings in
+                        guard let pasted = strings.first else { return }
+                        Task { @MainActor in setVINInput(pasted) }
+                    }
+                    .labelStyle(.titleOnly)
+                    .buttonBorderShape(.capsule)
+                    .controlSize(.mini)
+                    .tint(Color.agPrimary)
+                }
+                #endif
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
@@ -170,7 +198,7 @@ struct AddVehicleFlowView: View {
                     Button(String(year)) {
                         if selectedYear != year {
                             selectedYear = year
-                            selectedMake = ""; selectedModel = ""; selectedTrim = ""
+                            selectedMake = ""; selectedModel = ""; selectedTrim = ""; isTypingModel = false
                             lookupManager.makes = []; lookupManager.models = []; lookupManager.trims = []
                             Task { await lookupManager.loadMakes(year: year) }
                         }
@@ -215,6 +243,7 @@ struct AddVehicleFlowView: View {
                         Button(make) {
                             selectedMake = make
                             selectedModel = ""; selectedTrim = ""
+                            isTypingModel = false
                             lookupManager.models = []; lookupManager.trims = []
                             if let y = selectedYear {
                                 Task { await lookupManager.loadModels(make: make, year: y) }
@@ -241,29 +270,43 @@ struct AddVehicleFlowView: View {
             let models = lookupManager.models.isEmpty
                 ? (VehicleDatabase.models[selectedMake] ?? [])
                 : lookupManager.models
-            Menu {
-                if lookupManager.isLoadingModels {
-                    Label("Loading…", systemImage: "clock").disabled(true)
-                } else {
-                    ForEach(models, id: \.self) { model in
-                        Button(model) {
-                            selectedModel = model
-                            selectedTrim = ""
-                            lookupManager.trims = []
-                            if let y = selectedYear {
-                                Task { await lookupManager.loadTrims(make: selectedMake, model: model, year: y) }
+            if isTypingModel {
+                manualModelField
+            } else {
+                Menu {
+                    if lookupManager.isLoadingModels {
+                        Label("Loading…", systemImage: "clock").disabled(true)
+                    } else {
+                        if models.isEmpty {
+                            Text("No models found for \(selectedMake)")
+                        }
+                        ForEach(models, id: \.self) { model in
+                            Button(model) {
+                                selectedModel = model
+                                selectedTrim = ""
+                                lookupManager.trims = []
+                                if let y = selectedYear {
+                                    Task { await lookupManager.loadTrims(make: selectedMake, model: model, year: y) }
+                                }
                             }
                         }
+                        Divider()
+                        Button {
+                            selectedModel = ""; selectedTrim = ""
+                            isTypingModel = true
+                        } label: {
+                            Label("Not listed? Type it in", systemImage: "keyboard")
+                        }
                     }
+                } label: {
+                    menuLabel(selectedModel.isEmpty ? nil : selectedModel, disabled: disabled)
                 }
-            } label: {
-                menuLabel(selectedModel.isEmpty ? nil : selectedModel, disabled: disabled)
+                .disabled(disabled)
             }
-            .disabled(disabled)
-            .task(id: selectedMake) {
-                if !selectedMake.isEmpty, let y = selectedYear, lookupManager.models.isEmpty {
-                    await lookupManager.loadModels(make: selectedMake, year: y)
-                }
+        }
+        .task(id: selectedMake) {
+            if !selectedMake.isEmpty, let y = selectedYear, lookupManager.models.isEmpty {
+                await lookupManager.loadModels(make: selectedMake, year: y)
             }
         }
     }
@@ -294,6 +337,44 @@ struct AddVehicleFlowView: View {
                 }
             }
         }
+    }
+
+    /// Free-text model entry for cars missing from the API / bundled lists.
+    private var manualModelField: some View {
+        HStack(spacing: 8) {
+            TextField("Type your model", text: $selectedModel)
+                .font(Font.custom("Quicksand", size: 14))
+                .foregroundStyle(Color.agForeground)
+                .textInputAutocapitalization(.words)
+                .autocorrectionDisabled()
+                .submitLabel(.done)
+                .onSubmit {
+                    let model = selectedModel.trimmingCharacters(in: .whitespaces)
+                    selectedModel = model
+                    lookupManager.trims = []
+                    if !model.isEmpty, let y = selectedYear {
+                        Task { await lookupManager.loadTrims(make: selectedMake, model: model, year: y) }
+                    }
+                }
+            Button {
+                selectedModel = ""; selectedTrim = ""
+                isTypingModel = false
+            } label: {
+                Image(systemName: "list.bullet")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Color.agMutedForeground)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Choose model from list")
+        }
+        .padding(.horizontal, 12)
+        .frame(height: 41)
+        .background(Color.agCard)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .strokeBorder(Color.agBorder, lineWidth: 1)
+        )
     }
 
     private func menuLabel(_ value: String?, disabled: Bool) -> some View {
@@ -522,11 +603,9 @@ struct AddVehicleFlowView: View {
         return String(cleaned.prefix(17))
     }
 
+    /// Lookup is triggered by the VIN field's onChange once it reaches 17 characters.
     private func setVINInput(_ value: String) {
         vinInput = sanitizedVIN(value)
-        if vinInput.count == 17 {
-            Task { await decodeVIN() }
-        }
     }
 
     private func decodeVIN() async {
@@ -575,84 +654,6 @@ struct AddVehicleFlowView: View {
         withAnimation(.easeInOut(duration: 0.35)) {
             addedVehicle = vehicle
         }
-    }
-}
-
-private struct VINInputField: UIViewRepresentable {
-    @Binding var text: String
-    let placeholder: String
-
-    func makeUIView(context: Context) -> UITextField {
-        let textField = CommandPasteTextField()
-        textField.delegate = context.coordinator
-        textField.placeholder = placeholder
-        textField.font = UIFont(name: "Quicksand-Regular", size: 14) ?? .systemFont(ofSize: 14)
-        textField.textColor = UIColor(Color.agForeground)
-        textField.autocapitalizationType = .allCharacters
-        textField.autocorrectionType = .no
-        textField.spellCheckingType = .no
-        textField.returnKeyType = .done
-        textField.clearButtonMode = .never
-        textField.backgroundColor = .clear
-        return textField
-    }
-
-    func updateUIView(_ uiView: UITextField, context: Context) {
-        if uiView.text != text {
-            uiView.text = text
-        }
-    }
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(text: $text)
-    }
-
-    final class Coordinator: NSObject, UITextFieldDelegate {
-        @Binding private var text: String
-
-        init(text: Binding<String>) {
-            _text = text
-        }
-
-        func textField(
-            _ textField: UITextField,
-            shouldChangeCharactersIn range: NSRange,
-            replacementString string: String
-        ) -> Bool {
-            let current = textField.text ?? ""
-            guard let swiftRange = Range(range, in: current) else { return false }
-            let proposed = current.replacingCharacters(in: swiftRange, with: string)
-            let sanitized = String(
-                proposed
-                    .uppercased()
-                    .filter { $0.isLetter || $0.isNumber }
-                    .prefix(17)
-            )
-            text = sanitized
-            textField.text = sanitized
-            return false
-        }
-
-        func textFieldShouldReturn(_ textField: UITextField) -> Bool {
-            textField.resignFirstResponder()
-            return true
-        }
-    }
-}
-
-private final class CommandPasteTextField: UITextField {
-    override var keyCommands: [UIKeyCommand]? {
-        [
-            UIKeyCommand(
-                input: "v",
-                modifierFlags: .command,
-                action: #selector(commandPaste)
-            )
-        ]
-    }
-
-    @objc private func commandPaste() {
-        paste(nil)
     }
 }
 

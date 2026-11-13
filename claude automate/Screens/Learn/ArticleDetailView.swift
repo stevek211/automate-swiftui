@@ -75,7 +75,7 @@ struct ArticleDetailView: View {
             }
             .padding(AGSpacing.screenPadding)
         }
-        .background(Color.agBackground)
+        .appBackground()
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
     }

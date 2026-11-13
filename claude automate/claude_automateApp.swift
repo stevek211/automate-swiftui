@@ -1,6 +1,7 @@
 import SwiftUI
 import Supabase
 import CoreText
+import UserNotifications
 
 @main
 struct AutoGuardApp: App {
@@ -9,6 +10,8 @@ struct AutoGuardApp: App {
 
     init() {
         registerBundleFonts()
+        // Route taps on "update your odometer" reminders back into the app.
+        UNUserNotificationCenter.current().delegate = NotificationRouter.shared
         guard !PreviewSupport.isRunningForPreviews else { return }
         AnalyticsService.shared.track(.appLaunched)
     }
@@ -77,6 +80,18 @@ struct RootView: View {
                 showOnboarding = false
                 return
             }
+            // `-debugUser <uuid>`: open that account's locally saved data without signing in
+            // (UI checks against real saved cars; nothing is sent to the server).
+            let args = ProcessInfo.processInfo.arguments
+            if let index = args.firstIndex(of: "-debugUser"), index + 1 < args.count,
+               let userId = UUID(uuidString: args[index + 1]) {
+                appState.configure(for: userId)
+                showOnboarding = false
+                if args.contains("-refreshSchedule"), let id = appState.selectedVehicleId ?? appState.vehicles.first?.id {
+                    Task { await appState.debugRefreshSchedule(for: id) }
+                }
+                return
+            }
             #endif
             // On launch: if already authenticated, configure AppState for that user
             if let user = authState.currentUser {
@@ -99,5 +114,23 @@ struct RootView: View {
                 }
             }
         }
+        // Tapped an "update your odometer" reminder: open that car's mileage sheet on Home.
+        .onChange(of: NotificationRouter.shared.pendingMileageVehicleId) { _, _ in
+            openPendingMileagePrompt()
+        }
+        .onChange(of: showOnboarding) { _, _ in
+            openPendingMileagePrompt() // cold launch from a notification tap
+        }
+    }
+
+    private func openPendingMileagePrompt() {
+        guard showOnboarding == false,
+              let id = NotificationRouter.shared.pendingMileageVehicleId,
+              appState.vehicles.contains(where: { $0.id == id })
+        else { return }
+        NotificationRouter.shared.pendingMileageVehicleId = nil
+        appState.selectedVehicleId = id
+        appState.selectedTab = .home
+        appState.showMileageUpdater = true
     }
 }

@@ -18,7 +18,7 @@ struct ContentView: View {
                 // Give every tab's scroll content room to clear the nav.
                 .contentMargins(.bottom, bottomNavHeight, for: .scrollContent)
         }
-        .background(Color(hex: "F5F6F7"))
+        .appBackground()
         .safeAreaInset(edge: .bottom, spacing: 0) {
             AutomateBottomNav(selectedTab: $state.selectedTab)
                 .onGeometryChange(for: CGFloat.self) { $0.size.height } action: {
@@ -53,78 +53,60 @@ struct ContentView: View {
         }
     }
 
-    @ViewBuilder
+    /// All tabs stay alive and cross-fade, so switching doesn't rebuild the
+    /// screen (no layout jump, no car photos reloading, scroll position kept).
     private var selectedTabView: some View {
-        switch appState.selectedTab {
-        case .home:
-            NavigationStack {
-                HomeView()
+        ZStack {
+            tabPage(.home) {
+                NavigationStack { HomeView() }
             }
-        case .diagnose:
-            NavigationStack {
-                DiagnoseView()
+            tabPage(.learn) {
+                NavigationStack { LearnView() }
             }
-        case .learn:
-            NavigationStack {
-                LearnView()
-            }
-        case .garage:
-            NavigationStack {
-                GarageView()
-                    .navigationDestination(for: Vehicle.self) { vehicle in
-                        VehicleDetailView(vehicle: vehicle)
-                    }
+            tabPage(.garage) {
+                NavigationStack {
+                    GarageView()
+                        .navigationDestination(for: Vehicle.self) { vehicle in
+                            VehicleDetailView(vehicle: vehicle)
+                        }
+                }
             }
         }
+    }
+
+    private func tabPage<Content: View>(_ tab: AppTab, @ViewBuilder content: () -> Content) -> some View {
+        let isActive = appState.selectedTab == tab
+        return content()
+            .opacity(isActive ? 1 : 0)
+            .allowsHitTesting(isActive)
+            .accessibilityHidden(!isActive)
+            .animation(.easeInOut(duration: 0.22), value: isActive)
     }
 }
 
+/// Floating Liquid Glass tab bar (iOS 26 `glassEffect`). Content scrolls
+/// underneath it; the selected tab sits on a glass pill that slides between tabs.
 private struct AutomateBottomNav: View {
     @Binding var selectedTab: AppTab
+    @Namespace private var glassNamespace
 
-    private let activeColor = Color(hex: "539DF3")
+    private let activeColor = Color.garageTitle   // navy, matches "My Garage"
     private let inactiveColor = Color(hex: "484C52")
 
     var body: some View {
-        VStack(spacing: 0) {
-            ZStack(alignment: .top) {
-                HStack(alignment: .top, spacing: 0) {
-                    navItem(.home)
-                    navItem(.diagnose)
-                    navItem(.learn)
-                    navItem(.garage)
+        GlassEffectContainer(spacing: 0) {
+            HStack(spacing: 0) {
+                ForEach(AppTab.allCases, id: \.self) { tab in
+                    navItem(tab)
                 }
-                .padding(.horizontal, 12)
-                .padding(.top, 12)
-                .padding(.bottom, 8)
-
-                selectionIndicator
-                    .padding(.top, 8)
             }
-            .frame(maxWidth: .infinity)
-            .background(Color.white)
+            .padding(6)
+            .glassEffect(.regular.interactive(), in: .capsule)
         }
-        .background(Color.white)
-        .clipShape(TopRoundedRectangle(radius: 24))
-        .background(Color.white.ignoresSafeArea(edges: .bottom))
+        .padding(.horizontal, 20)
+        .padding(.top, 8)
+        .padding(.bottom, 4)
         .accessibilityElement(children: .contain)
-    }
-
-    private var selectionIndicator: some View {
-        GeometryReader { proxy in
-            let tabs = AppTab.allCases
-            let index = tabs.firstIndex(of: selectedTab) ?? 0
-            let segmentWidth = proxy.size.width / CGFloat(max(tabs.count, 1))
-            let xOffset = segmentWidth * CGFloat(index) + (segmentWidth - 56) / 2
-
-            Rectangle()
-                .fill(activeColor)
-                .frame(width: 56, height: 2)
-                .offset(x: xOffset)
-                .animation(.easeInOut(duration: 0.18), value: selectedTab)
-        }
-        .frame(height: 2)
-        .padding(.horizontal, 12)
     }
 
     private func navItem(_ tab: AppTab) -> some View {
@@ -132,55 +114,38 @@ private struct AutomateBottomNav: View {
         let color = isSelected ? activeColor : inactiveColor
 
         return Button {
-            withAnimation(.easeInOut(duration: 0.18)) {
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
                 selectedTab = tab
             }
         } label: {
-            VStack(spacing: 6) {
+            VStack(spacing: 3) {
                 Image(systemName: tab.bottomNavSymbol)
-                    .font(.system(size: tab == .diagnose ? 24 : 23, weight: .regular))
+                    .font(.system(size: 20, weight: isSelected ? .semibold : .regular))
                     .symbolRenderingMode(.monochrome)
-                    .foregroundStyle(color)
-                    .frame(width: 32, height: 32)
+                    .frame(width: 28, height: 26)
 
                 Text(tab.rawValue)
-                    .font(.poppins(isSelected ? .medium : .regular, size: 12))
-                    .foregroundStyle(color)
+                    .font(.quicksand(isSelected ? .bold : .medium, size: 11))
                     .lineLimit(1)
                     .minimumScaleFactor(0.85)
-                    .frame(height: 16)
             }
+            .foregroundStyle(color)
             .frame(maxWidth: .infinity)
-            .contentShape(Rectangle())
+            .padding(.vertical, 7)
+            .background {
+                if isSelected {
+                    // Cream from the page gradient, not the blue accent.
+                    Capsule()
+                        .fill(Color.garageGradientEnd.opacity(0.7))
+                        .glassEffect(.regular.tint(Color.garageGradientEnd.opacity(0.5)), in: .capsule)
+                        .matchedGeometryEffect(id: "selection", in: glassNamespace)
+                }
+            }
+            .contentShape(Capsule())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(tab.rawValue)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
-    }
-}
-
-private struct TopRoundedRectangle: Shape {
-    var radius: CGFloat
-
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        let radius = min(radius, rect.width / 2, rect.height / 2)
-
-        path.move(to: CGPoint(x: rect.minX, y: rect.maxY))
-        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY + radius))
-        path.addQuadCurve(
-            to: CGPoint(x: rect.minX + radius, y: rect.minY),
-            control: CGPoint(x: rect.minX, y: rect.minY)
-        )
-        path.addLine(to: CGPoint(x: rect.maxX - radius, y: rect.minY))
-        path.addQuadCurve(
-            to: CGPoint(x: rect.maxX, y: rect.minY + radius),
-            control: CGPoint(x: rect.maxX, y: rect.minY)
-        )
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
-        path.closeSubpath()
-
-        return path
     }
 }
 
@@ -189,8 +154,6 @@ private extension AppTab {
         switch self {
         case .home:
             return "house"
-        case .diagnose:
-            return "stethoscope"
         case .learn:
             return "book.pages"
         case .garage:

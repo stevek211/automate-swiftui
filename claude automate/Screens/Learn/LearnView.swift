@@ -3,6 +3,15 @@ import SwiftUI
 struct LearnView: View {
     @Environment(AppState.self) private var appState
     @State private var searchText = ""
+    @State private var selectedCategory: DiagnosticCategory?
+
+    var filteredCategories: [DiagnosticCategory] {
+        if searchText.isEmpty { return DiagnosticCategory.allCases }
+        return DiagnosticCategory.allCases.filter {
+            $0.rawValue.localizedCaseInsensitiveContains(searchText) ||
+            $0.description.localizedCaseInsensitiveContains(searchText)
+        }
+    }
 
     var filteredSystems: [CarSystem] {
         if searchText.isEmpty { return appState.carSystems }
@@ -22,10 +31,10 @@ struct LearnView: View {
             VStack(alignment: .leading, spacing: 16) {
                 // Header
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Learn")
+                    Text("Learn & Diagnose")
                         .font(.system(size: 20, weight: .bold))
                         .foregroundStyle(Color.agForeground)
-                    Text("Understand your car, inside and out")
+                    Text("Find the fix and understand your car")
                         .font(.system(size: 14))
                         .foregroundStyle(Color.agMutedForeground)
                 }
@@ -35,7 +44,7 @@ struct LearnView: View {
                     Image(systemName: "magnifyingglass")
                         .font(.system(size: 14))
                         .foregroundStyle(Color.agMutedForeground)
-                    TextField("Search systems & articles", text: $searchText)
+                    TextField("Search problems, systems & articles", text: $searchText)
                         .font(.system(size: 16))
                 }
                 .padding(.horizontal, 14)
@@ -46,7 +55,25 @@ struct LearnView: View {
                     Capsule().strokeBorder(Color.agBorder, lineWidth: 1)
                 )
 
+                // Diagnose (2 col)
+                if !filteredCategories.isEmpty {
+                    sectionHeader("Diagnose a problem")
+
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                        ForEach(filteredCategories) { category in
+                            DiagnoseCategoryCard(category: category) {
+                                selectedCategory = category
+                            }
+                        }
+                    }
+                }
+
                 // Car Systems Grid (3 col)
+                if !filteredSystems.isEmpty {
+                    sectionHeader("Car systems")
+                        .padding(.top, 4)
+                }
+
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
                     ForEach(filteredSystems) { system in
                         NavigationLink(value: system) {
@@ -76,9 +103,7 @@ struct LearnView: View {
 
                 // Articles
                 if !filteredArticles.isEmpty {
-                    Text("Articles")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(Color.agForeground)
+                    sectionHeader("Articles")
                         .padding(.top, 4)
 
                     ForEach(filteredArticles) { article in
@@ -93,13 +118,29 @@ struct LearnView: View {
             .padding(.top, 24)
             .padding(.bottom, 16)
         }
-        .background(Color.agBackground)
+        .appBackground()
         .navigationDestination(for: CarSystem.self) { system in
             SystemDetailView(system: system)
         }
         .navigationDestination(for: LearningArticle.self) { article in
             ArticleDetailView(article: article)
         }
+        .navigationDestination(item: $selectedCategory) { category in
+            switch category {
+            case .warningLight:
+                WarningLightDecoderView()
+            case .strangeNoise:
+                NoiseDiagnosisView()
+            default:
+                ComingSoonView(title: category.rawValue)
+            }
+        }
+    }
+
+    private func sectionHeader(_ title: String) -> some View {
+        Text(title)
+            .font(.system(size: 14, weight: .semibold))
+            .foregroundStyle(Color.agForeground)
     }
 }
 

@@ -1,66 +1,5 @@
 import SwiftUI
 
-struct DiagnoseView: View {
-    @Environment(AppState.self) private var appState
-    @State private var searchText = ""
-    @State private var selectedCategory: DiagnosticCategory?
-
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                // Header
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Diagnose")
-                        .font(.system(size: 20, weight: .bold))
-                        .foregroundStyle(Color.agForeground)
-                    Text("Don't worry, let's find the fix")
-                        .font(.system(size: 14))
-                        .foregroundStyle(Color.agMutedForeground)
-                }
-
-                // Search bar
-                HStack(spacing: 8) {
-                    Image(systemName: "magnifyingglass")
-                        .font(.system(size: 14))
-                        .foregroundStyle(Color.agMutedForeground)
-                    TextField("Search warning lights, noises...", text: $searchText)
-                        .font(.system(size: 16))
-                }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 12)
-                .background(Color.agCard)
-                .clipShape(Capsule())
-                .overlay(
-                    Capsule().strokeBorder(Color.agBorder, lineWidth: 1)
-                )
-
-                // Category grid
-                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                    ForEach(DiagnosticCategory.allCases) { category in
-                        DiagnoseCategoryCard(category: category) {
-                            selectedCategory = category
-                        }
-                    }
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.top, 24)
-            .padding(.bottom, 16)
-        }
-        .background(Color.agBackground)
-        .navigationDestination(item: $selectedCategory) { category in
-            switch category {
-            case .warningLight:
-                WarningLightDecoderView()
-            case .strangeNoise:
-                NoiseDiagnosisView()
-            default:
-                ComingSoonView(title: category.rawValue)
-            }
-        }
-    }
-}
-
 struct DiagnoseCategoryCard: View {
     let category: DiagnosticCategory
     let action: () -> Void
@@ -146,15 +85,8 @@ struct ComingSoonView: View {
                 .foregroundStyle(Color.agMutedForeground)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.agBackground)
+        .appBackground()
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
     }
-}
-
-#Preview {
-    NavigationStack {
-        DiagnoseView()
-    }
-    .environment(AppState())
 }

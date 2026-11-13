@@ -124,7 +124,7 @@ struct NoiseDiagnosisView: View {
             }
             .padding(AGSpacing.screenPadding)
         }
-        .background(Color.agBackground)
+        .appBackground()
         .navigationTitle("Noise Diagnosis")
         .navigationBarTitleDisplayMode(.inline)
         .animation(.spring(duration: 0.3), value: currentStep)

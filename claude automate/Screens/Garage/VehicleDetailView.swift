@@ -48,7 +48,7 @@ struct VehicleDetailView: View {
                 .padding(.bottom, 40)
             }
         }
-        .background(Color.white)
+        .appBackground()
         .ignoresSafeArea(edges: .top)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -74,12 +74,9 @@ struct VehicleDetailView: View {
 
     private var heroImageSection: some View {
         ZStack {
-            LinearGradient(
-                colors: [Color(hex: "ECECF0").opacity(0.6), .white],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .frame(height: 272)
+            // Transparent: the shared page gradient (appBackground) shows through.
+            Color.clear
+                .frame(height: 272)
 
             VehicleImageView(vehicle: vehicle, size: 224)
                 .frame(width: 224, height: 144)
@@ -172,7 +169,7 @@ struct VehicleDetailView: View {
                 showServicePlan = true
             }
             figmaActionButton(icon: "brain.head.profile", label: "Ask AI") {
-                appState.selectedTab = .diagnose
+                appState.selectedTab = .learn
             }
         }
         .fullScreenCover(isPresented: $showServicePlan) {

@@ -34,7 +34,8 @@ struct MileageUpdaterSheet: View {
 
                         FormSheetField(label: "New odometer *") {
                             FormSheetTextField(
-                                placeholder: "",
+                                placeholder: MileageReminder.estimatedMileage(for: vehicle)
+                                    .map { "~\($0.formatted())" } ?? "",
                                 text: $mileageText,
                                 suffix: "mi",
                                 keyboard: .numberPad
@@ -58,14 +59,14 @@ struct MileageUpdaterSheet: View {
 
     private func lastUpdatedHint(_ vehicle: Vehicle) -> String {
         guard let updated = vehicle.mileageUpdatedAt else {
-            return "Check the number on your dashboard. Keeping it current makes your service reminders accurate."
+            return "Check the number on your dashboard. Keeping it current keeps your service plan accurate."
         }
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .full
         let when = Calendar.current.isDateInToday(updated)
             ? "today"
             : formatter.localizedString(for: updated, relativeTo: .now)
-        return "Last updated \(when). Keeping it current makes your service reminders accurate."
+        return "Last updated \(when). Check the number on your dashboard — keeping it current keeps your service plan accurate."
     }
 
     private var parsedMileage: Int? {

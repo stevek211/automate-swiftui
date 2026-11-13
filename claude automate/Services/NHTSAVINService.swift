@@ -14,8 +14,15 @@ private extension String {
         let upper = self.uppercased()
         if String.allCapsBrands.contains(upper) { return upper }
         // Word-by-word: keep known acronyms uppercased, title-case the rest
-        return self.capitalized.components(separatedBy: " ").map { word in
-            String.allCapsBrands.contains(word.uppercased()) ? word.uppercased() : word
+        return self.components(separatedBy: " ").map { word in
+            let upperWord = word.uppercased()
+            if String.allCapsBrands.contains(upperWord) { return upperWord }
+            // Model codes stay as written: "MDX", "RDX", "CR-V", "Q5", "F-150", "RAV4".
+            // (letters only up to 3 long, or anything containing a digit or hyphen)
+            let letters = word.filter(\.isLetter)
+            let isCode = word.contains(where: \.isNumber) || word.contains("-")
+                || (letters.count <= 3 && word == upperWord)
+            return isCode ? upperWord : word.capitalized
         }.joined(separator: " ")
     }
 }

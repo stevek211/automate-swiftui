@@ -288,7 +288,7 @@ struct LogMilestoneSheet: View {
                     Spacer()
 
                     Text(item.action.displayText)
-                        .font(.quicksand(.regular, size: 10))
+                        .font(.quicksand(.regular, size: 12))
                         .tracking(0.50)
                         .foregroundStyle(ServicePlanPalette.dotColor)
 
@@ -322,7 +322,7 @@ struct LogMilestoneSheet: View {
                             .foregroundStyle(ServicePlanPalette.textPrimary)
                         Spacer()
                         Text(item.action.displayText)
-                            .font(.quicksand(.regular, size: 10))
+                            .font(.quicksand(.regular, size: 12))
                             .tracking(0.50)
                             .foregroundStyle(ServicePlanPalette.dotColor)
                         removeButton {
@@ -475,9 +475,9 @@ struct LogMilestoneSheet: View {
     private func removeButton(action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: "trash")
-                .font(.system(size: 11, weight: .medium))
+                .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(ServicePlanPalette.dotColor)
-                .frame(width: 24, height: 24)
+                .frame(width: 28, height: 28)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

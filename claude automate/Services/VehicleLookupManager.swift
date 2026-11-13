@@ -33,6 +33,11 @@ class VehicleLookupManager {
     private var modelsCache: [String: [String]] = [:] // "make-year" → models
     private var trimsCache: [String: [String]] = [:]  // "make-model-year" → trims
 
+    // The most recent request. Switching make/model quickly starts overlapping
+    // fetches; a slower, older reply must not overwrite the current list.
+    private var latestModelsKey: String?
+    private var latestTrimsKey: String?
+
     // MARK: - Popular Makes (shown first)
 
     private static let popularMakes: Set<String> = [
@@ -59,6 +64,11 @@ class VehicleLookupManager {
 
         do {
             let fetched = try await CarAPIService.fetchMakes(year: year)
+            // Free CarAPI plan only covers 2015–2020; an empty list means "no data", not "no makes".
+            guard !fetched.isEmpty else {
+                makes = VehicleDatabase.makes
+                return
+            }
             // Sort: popular makes first, then alphabetical
             makes = sortWithPopularFirst(fetched)
 
@@ -76,20 +86,32 @@ class VehicleLookupManager {
 
     func loadModels(make: String, year: Int) async {
         let cacheKey = "\(make)-\(year)"
+        latestModelsKey = cacheKey
         if let cached = modelsCache[cacheKey] {
             models = cached
+            isLoadingModels = false
             return
         }
 
         isLoadingModels = true
-        defer { isLoadingModels = false }
+        defer { if latestModelsKey == cacheKey { isLoadingModels = false } }
 
         do {
             let fetched = try await CarAPIService.fetchModels(make: make, year: year)
+            guard latestModelsKey == cacheKey else {
+                if !fetched.isEmpty { modelsCache[cacheKey] = fetched }
+                return
+            }
+            guard !fetched.isEmpty else {
+                // Outside the plan's years (or unknown make): use the bundled list.
+                models = VehicleDatabase.models[make] ?? []
+                return
+            }
             models = fetched
             modelsCache[cacheKey] = fetched
         } catch {
             print("🚗 [Lookup] Models fetch failed, using fallback: \(error.localizedDescription)")
+            guard latestModelsKey == cacheKey else { return }
             models = VehicleDatabase.models[make] ?? []
         }
     }
@@ -98,20 +120,31 @@ class VehicleLookupManager {
 
     func loadTrims(make: String, model: String, year: Int) async {
         let cacheKey = "\(make)-\(model)-\(year)"
+        latestTrimsKey = cacheKey
         if let cached = trimsCache[cacheKey] {
             trims = cached
+            isLoadingTrims = false
             return
         }
 
         isLoadingTrims = true
-        defer { isLoadingTrims = false }
+        defer { if latestTrimsKey == cacheKey { isLoadingTrims = false } }
 
         do {
             let fetched = try await CarAPIService.fetchTrims(make: make, model: model, year: year)
+            guard latestTrimsKey == cacheKey else {
+                if !fetched.isEmpty { trimsCache[cacheKey] = fetched }
+                return
+            }
+            guard !fetched.isEmpty else {
+                trims = VehicleDatabase.trimsFor(make: make, model: model)
+                return
+            }
             trims = fetched
             trimsCache[cacheKey] = fetched
         } catch {
             print("🚗 [Lookup] Trims fetch failed, using fallback: \(error.localizedDescription)")
+            guard latestTrimsKey == cacheKey else { return }
             trims = VehicleDatabase.trimsFor(make: make, model: model)
         }
     }

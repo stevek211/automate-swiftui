@@ -18,6 +18,9 @@ struct ServicePlanView: View {
 
     private let milestones: [ServicePlanMilestone]
     private let minimumMileage: Int
+    /// Some intervals are typical estimates because the manufacturer publishes no
+    /// fixed mileage (Maintenance Minder / oil-life-monitor cars).
+    private var usesTypicalIntervals = false
 
     @Environment(AppState.self) private var appState
     @State private var currentMileage: Int
@@ -49,6 +52,7 @@ struct ServicePlanView: View {
         self.serviceLogCount = serviceLogCount
         self.milestones = plan.milestones
         self.minimumMileage = vehicle.mileage
+        self.usesTypicalIntervals = oemItems.contains { $0.usesTypicalInterval && !($0.severeOnly && !severeDuty) }
         self._currentMileage = State(initialValue: vehicle.mileage)
     }
 
@@ -88,7 +92,7 @@ struct ServicePlanView: View {
                 mainContent
             }
         }
-        .background(ServicePlanPalette.bg)
+        .appBackground()
         .toolbar(.hidden, for: .navigationBar)
         .ignoresSafeArea(edges: .bottom)
     }
@@ -121,7 +125,6 @@ struct ServicePlanView: View {
         .padding(.horizontal, 20)
         .padding(.top, 16)
         .padding(.bottom, 8)
-        .background(ServicePlanPalette.bg)
     }
 
     // MARK: - Vehicle Header
@@ -139,7 +142,6 @@ struct ServicePlanView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 20)
         .padding(.bottom, 20)
-        .background(ServicePlanPalette.bg)
     }
 
     // MARK: - Stats Row
@@ -191,7 +193,6 @@ struct ServicePlanView: View {
         .padding(.horizontal, 20)
         .padding(.bottom, 20)
         .frame(maxWidth: .infinity, minHeight: 119.99)
-        .background(ServicePlanPalette.bg)
         .sheet(isPresented: $showMileageEdit) { mileageEditSheet }
     }
 
@@ -294,7 +295,6 @@ struct ServicePlanView: View {
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 14)
-            .background(ServicePlanPalette.bg)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -367,7 +367,6 @@ struct ServicePlanView: View {
                 .padding(.top, 16)
                 .padding(.bottom, 40)
         }
-        .background(ServicePlanPalette.bg)
     }
 
     // MARK: - Next Milestone Card
@@ -756,10 +755,13 @@ struct ServicePlanView: View {
                     .fixedSize(horizontal: false, vertical: true)
             } else {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Based on manufacturer recommendations.")
+                    Text(usesTypicalIntervals
+                         ? "Based on manufacturer recommendations. Your car uses a dashboard maintenance reminder instead of fixed mileages for some services, so those are shown at typical intervals."
+                         : "Based on manufacturer recommendations.")
                         .font(.quicksand(.regular, size: 12))
                         .foregroundStyle(ServicePlanPalette.textMuted)
                         .frame(maxWidth: .infinity, alignment: .leading)
+                        .fixedSize(horizontal: false, vertical: true)
                     ForEach(sources) { source in
                         SourceLinkRow(source: source)
                     }
