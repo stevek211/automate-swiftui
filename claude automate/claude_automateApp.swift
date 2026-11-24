@@ -10,6 +10,7 @@ struct AutoGuardApp: App {
 
     init() {
         registerBundleFonts()
+        applyNavigationBarFonts()
         // Route taps on "update your odometer" reminders back into the app.
         UNUserNotificationCenter.current().delegate = NotificationRouter.shared
         guard !PreviewSupport.isRunningForPreviews else { return }
@@ -25,6 +26,21 @@ struct AutoGuardApp: App {
             guard let url = Bundle.main.url(forResource: name, withExtension: "ttf") else { continue }
             CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil)
         }
+    }
+
+    /// System navigation bar titles and bar buttons ("Done") are drawn by UIKit and ignore
+    /// SwiftUI `.font`, so set Quicksand on them here. Only the text attributes are touched,
+    /// so the bars keep their default (Liquid Glass) backgrounds.
+    private func applyNavigationBarFonts() {
+        func quicksand(_ name: String, _ size: CGFloat, _ style: UIFont.TextStyle) -> UIFont {
+            let base = UIFont(name: name, size: size) ?? .systemFont(ofSize: size)
+            return UIFontMetrics(forTextStyle: style).scaledFont(for: base)
+        }
+        let bar = UINavigationBar.appearance()
+        bar.titleTextAttributes = [.font: quicksand("Quicksand-SemiBold", 17, .headline)]
+        bar.largeTitleTextAttributes = [.font: quicksand("Quicksand-Bold", 34, .largeTitle)]
+        UIBarButtonItem.appearance().setTitleTextAttributes(
+            [.font: quicksand("Quicksand-SemiBold", 17, .body)], for: .normal)
     }
 
     var body: some Scene {
@@ -56,7 +72,7 @@ struct RootView: View {
                         ProgressView()
                             .controlSize(.large)
                         Text("Loading...")
-                            .font(.system(size: 14, weight: .medium))
+                            .font(.quicksandScaled(.medium, size: 14))
                             .foregroundStyle(Color.agMutedForeground)
                     }
                 }
@@ -69,6 +85,8 @@ struct RootView: View {
                 }
             } else {
                 ContentView()
+                    // Rebuild the screens when the palette changes, in case a view cached a color.
+                    .id(ThemeStore.shared.palette.id)
             }
         }
         .onAppear {

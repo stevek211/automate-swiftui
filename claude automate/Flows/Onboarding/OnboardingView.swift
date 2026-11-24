@@ -50,8 +50,8 @@ struct OnboardingView: View {
                 ZStack {
                     LinearGradient(
                         stops: [
-                            Gradient.Stop(color: Color(red: 0.98, green: 0.97, blue: 0.96), location: 0.00),
-                            Gradient.Stop(color: Color(red: 0.94, green: 0.92, blue: 0.89), location: 1.00),
+                            Gradient.Stop(color: Color.theme.background, location: 0.00),
+                            Gradient.Stop(color: Color.theme.surfaceAlt, location: 1.00),
                         ],
                         startPoint: UnitPoint(x: 0.5, y: 0),
                         endPoint: UnitPoint(x: 0.5, y: 1)
@@ -74,8 +74,8 @@ struct OnboardingView: View {
     private var splashScreen: some View {
         LinearGradient(
             stops: [
-                Gradient.Stop(color: Color(red: 0.98, green: 0.97, blue: 0.96), location: 0.00),
-                Gradient.Stop(color: Color(red: 0.94, green: 0.92, blue: 0.89), location: 1.00),
+                Gradient.Stop(color: Color.theme.background, location: 0.00),
+                Gradient.Stop(color: Color.theme.surfaceAlt, location: 1.00),
             ],
             startPoint: UnitPoint(x: 0.5, y: 0),
             endPoint: UnitPoint(x: 0.5, y: 1)
@@ -212,7 +212,7 @@ struct OnboardingView: View {
             VStack(spacing: 8) {
                 Text("Welcome to AutoMate")
                     .font(.custom("Quicksand-Bold", size: 26))
-                    .foregroundStyle(Color(hex: "1F1A17"))
+                    .foregroundStyle(Color.theme.ink)
 
                 Text("Know your car")
                     .font(.custom("Quicksand-Regular", size: 16))
@@ -227,18 +227,18 @@ struct OnboardingView: View {
                         HStack(spacing: 12) {
                             Image(systemName: "person.fill")
                                 .font(.system(size: 16, weight: .medium))
-                                .foregroundStyle(Color(hex: "101828"))
+                                .foregroundStyle(Color.theme.ink)
                                 .frame(width: 20, height: 20)
                             Text("Create an account")
                                 .font(.custom("Quicksand-Medium", size: 14))
-                                .foregroundStyle(Color(hex: "101828"))
+                                .foregroundStyle(Color.theme.ink)
                                 .tracking(-0.15)
                         }
                         .frame(maxWidth: .infinity)
                         .frame(height: 52)
-                        .background(Color(hex: "E8E2DA"))
+                        .background(Color.theme.surfaceAlt)
                         .clipShape(Capsule())
-                        .overlay(Capsule().strokeBorder(Color(hex: "C8BFB5"), lineWidth: 1))
+                        .overlay(Capsule().strokeBorder(Color.theme.borderStrong, lineWidth: 1))
                         .shadow(color: .black.opacity(0.1), radius: 15, x: 0, y: 10)
                         .shadow(color: .black.opacity(0.1), radius: 6, x: 0, y: 4)
                     }
@@ -251,18 +251,18 @@ struct OnboardingView: View {
                         HStack(spacing: 12) {
                             Image(systemName: "arrow.right.circle")
                                 .font(.system(size: 16, weight: .medium))
-                                .foregroundStyle(Color(hex: "101828"))
+                                .foregroundStyle(Color.theme.ink)
                                 .frame(width: 20, height: 20)
                             Text("Log in")
                                 .font(.custom("Quicksand-Medium", size: 14))
-                                .foregroundStyle(Color(hex: "101828"))
+                                .foregroundStyle(Color.theme.ink)
                                 .tracking(-0.15)
                         }
                         .frame(maxWidth: .infinity)
                         .frame(height: 52)
-                        .background(Color(hex: "E8E2DA"))
+                        .background(Color.theme.surfaceAlt)
                         .clipShape(Capsule())
-                        .overlay(Capsule().strokeBorder(Color(hex: "C8BFB5"), lineWidth: 1))
+                        .overlay(Capsule().strokeBorder(Color.theme.borderStrong, lineWidth: 1))
                         .shadow(color: .black.opacity(0.1), radius: 15, x: 0, y: 10)
                         .shadow(color: .black.opacity(0.1), radius: 6, x: 0, y: 4)
                     }

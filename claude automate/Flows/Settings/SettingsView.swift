@@ -15,8 +15,8 @@ struct SettingsView: View {
     @State private var showLogoutConfirmation = false
     @State private var cacheClearedMessage: String?
 
-    private let ink = Color.garageInk
-    private let muted = Color.settingsMuted
+    private var ink: Color { Color.garageInk }
+    private var muted: Color { Color.settingsMuted }
 
     var body: some View {
         NavigationStack {
@@ -330,8 +330,56 @@ struct SettingsView: View {
                         .font(.quicksand(.regular, size: 13))
                         .foregroundStyle(muted)
                 }
+
+                paletteRow
             }
         }
+    }
+
+    /// Debug-only palette switcher. Palettes live in Theme/Palette.swift.
+    private var paletteRow: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            rowTitle("Color palette", weight: .semibold)
+            // Grid so every palette is visible without scrolling sideways.
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 3), spacing: 10) {
+                ForEach(Palette.all) { palette in
+                    paletteChip(palette)
+                }
+            }
+        }
+        .padding(.top, 16)
+    }
+
+    private func paletteChip(_ palette: Palette) -> some View {
+        let isSelected = ThemeStore.shared.palette == palette
+        return Button {
+            withAnimation(.easeInOut(duration: 0.25)) { ThemeStore.shared.palette = palette }
+        } label: {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 0) {
+                    ForEach(Array([palette.brand, palette.secondary, palette.heading, palette.surfaceAlt].enumerated()), id: \.offset) { _, color in
+                        color.frame(maxWidth: .infinity).frame(height: 28)
+                    }
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+                Text(palette.name)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .font(.quicksand(isSelected ? .bold : .medium, size: 13))
+                    .foregroundStyle(ink)
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.theme.card)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .strokeBorder(isSelected ? Color.theme.brand : Color.theme.border, lineWidth: isSelected ? 2 : 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(palette.name) palette")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
     #endif
 
@@ -469,7 +517,7 @@ private struct SettingsSwitchStyle: ToggleStyle {
             }
         } label: {
             Capsule()
-                .fill(configuration.isOn ? Color.garageInk : Color(hex: "CBD5E1"))
+                .fill(configuration.isOn ? Color.garageInk : Color.theme.borderStrong)
                 .frame(width: 36, height: 20)
                 .overlay(alignment: configuration.isOn ? .trailing : .leading) {
                     Circle()

@@ -1,99 +1,79 @@
 import SwiftUI
 
 extension Color {
-    // HSL color system matching the React app's CSS variables
+    // All tokens below are computed from the active palette (Theme/Palette.swift),
+    // so switching palettes recolors every screen. Names are kept so views don't change.
 
-    // Primary: HSL 175 55% 30% → teal
-    static let agPrimary = Color(hue: 175/360, saturation: 0.55, brightness: 0.48)
-    // Primary lighter variants
-    static let agPrimary5 = agPrimary.opacity(0.05)
-    static let agPrimary10 = agPrimary.opacity(0.10)
-    static let agPrimary15 = agPrimary.opacity(0.15)
-    static let agPrimary20 = agPrimary.opacity(0.20)
-    static let agPrimary30 = agPrimary.opacity(0.30)
+    // Brand (teal in the Current palette)
+    static var agPrimary: Color { theme.brand }
+    static var agPrimary5: Color { theme.brand.opacity(0.05) }
+    static var agPrimary10: Color { theme.brand.opacity(0.10) }
+    static var agPrimary15: Color { theme.brand.opacity(0.15) }
+    static var agPrimary20: Color { theme.brand.opacity(0.20) }
+    static var agPrimary30: Color { theme.brand.opacity(0.30) }
 
-    // Accent: HSL 35 90% 52% → golden/orange
-    static let agAccent = Color(hue: 35/360, saturation: 0.90, brightness: 0.80)
-    static let agAccent5 = agAccent.opacity(0.05)
-    static let agAccent10 = agAccent.opacity(0.10)
-    static let agAccent15 = agAccent.opacity(0.15)
+    // Accent (golden in the Current palette)
+    static var agAccent: Color { theme.accent }
+    static var agAccent5: Color { theme.accent.opacity(0.05) }
+    static var agAccent10: Color { theme.accent.opacity(0.10) }
+    static var agAccent15: Color { theme.accent.opacity(0.15) }
 
-    // Success: HSL 152 55% 38% → green
-    static let agSuccess = Color(hue: 152/360, saturation: 0.55, brightness: 0.52)
-    static let agSuccess8 = agSuccess.opacity(0.08)
+    // Status
+    static var agSuccess: Color { theme.success }
+    static var agSuccess8: Color { theme.success.opacity(0.08) }
+    static var agWarning: Color { theme.warning }
+    static var agWarning10: Color { theme.warning.opacity(0.10) }
+    static var agWarning15: Color { theme.warning.opacity(0.15) }
+    static var agWarning25: Color { theme.warning.opacity(0.25) }
+    static var agDestructive: Color { theme.danger }
+    static var agDestructive5: Color { theme.danger.opacity(0.05) }
+    static var agDestructive10: Color { theme.danger.opacity(0.10) }
+    static var agDestructive15: Color { theme.danger.opacity(0.15) }
+    static var agDestructive20: Color { theme.danger.opacity(0.20) }
 
-    // Warning: HSL 35 90% 52% (same as accent)
-    static let agWarning = agAccent
-    static let agWarning10 = agAccent.opacity(0.10)
-    static let agWarning15 = agAccent.opacity(0.15)
-    static let agWarning25 = agAccent.opacity(0.25)
+    // Surfaces and text
+    static var agBackground: Color { theme.background }
+    static var agCard: Color { theme.card }
+    static var agForeground: Color { theme.ink }
+    static var agMuted: Color { theme.surfaceAlt }
+    static var agMutedForeground: Color { theme.mutedText }
+    static var agSecondary: Color { theme.surfaceAlt }
+    static var agBorder: Color { theme.border }
 
-    // Destructive: HSL 0 72% 51% → red
-    static let agDestructive = Color(hue: 0, saturation: 0.72, brightness: 0.78)
-    static let agDestructive5 = agDestructive.opacity(0.05)
-    static let agDestructive10 = agDestructive.opacity(0.10)
-    static let agDestructive15 = agDestructive.opacity(0.15)
-    static let agDestructive20 = agDestructive.opacity(0.20)
+    // Warm secondary (terracotta in the Current palette)
+    static var agTerracotta: Color { theme.secondary }
+    static var agTerracottaTint: Color { theme.secondary.opacity(0.12) }
+    static var agSageTint: Color { theme.success.opacity(0.25) }
+    static var agCream: Color { theme.surfaceAlt }
 
-    // Background: white
-    static let agBackground = Color.white
+    // Onboarding
+    static var agOnboardingBrown: Color { theme.secondary }
+    static var agOnboardingBorder: Color { theme.borderStrong }
+    static var agOnboardingText: Color { theme.ink }
+    static var agOnboardingSubtext: Color { theme.mutedText }
+    static var agOnboardingMuted: Color { theme.faintText }
 
-    // Card: white
-    static let agCard = Color.white
+    // Garage
+    static var garageInk: Color { theme.ink }
+    static var garageTitle: Color { theme.heading }
+    static var garageDot: Color { theme.secondary.opacity(0.5) }
+    static var garageMuted: Color { theme.mutedText }
+    static var garageHairline: Color { theme.hairline }
+    static var garageCardFill: Color { theme.card }
+    static var garageCardBorderPrimary: Color { theme.mutedText.opacity(0.6) }
+    static var garageCardBorder: Color { theme.borderStrong }
+    static var garageGradientTop: Color { theme.background }
+    static var garageGradientEnd: Color { theme.surfaceAlt }
+    static var garageButtonFill: Color { theme.surfaceAlt }
 
-    // Foreground: HSL 220 20% 15% → dark charcoal
-    static let agForeground = Color(hue: 220/360, saturation: 0.20, brightness: 0.22)
-
-    // Muted: HSL 40 15% 93%
-    static let agMuted = Color(hue: 40/360, saturation: 0.06, brightness: 0.93)
-
-    // Muted Foreground: HSL 220 10% 50%
-    static let agMutedForeground = Color(hue: 220/360, saturation: 0.10, brightness: 0.55)
-
-    // Secondary: HSL 40 20% 93%
-    static let agSecondary = Color(hue: 40/360, saturation: 0.08, brightness: 0.93)
-
-    // Border: HSL 40 15% 88%
-    static let agBorder = Color(hue: 40/360, saturation: 0.06, brightness: 0.88)
-
-    // Terracotta — #B8735A, used for health score / primary accent on detail screens
-    static let agTerracotta = Color(hex: "B8735A")
-    static let agTerracottaTint = Color(hex: "B8735A").opacity(0.12)
-
-    // Sage — #D4E5B8 tint background, agSuccess for icon fill
-    static let agSageTint = Color(hex: "D4E5B8")
-
-    // Cream — pill container background for segmented controls
-    static let agCream = Color(hex: "F5F0E8")
-
-    // Onboarding palette (from React Onboarding.tsx)
-    static let agOnboardingBrown = Color(hex: "B86D50")     // warm brown CTA
-    static let agOnboardingBorder = Color(hex: "C7BCB2")    // light tan border
-    static let agOnboardingText = Color(hex: "3A332C")      // dark brown text
-    static let agOnboardingSubtext = Color(hex: "746B62")    // medium brown
-    static let agOnboardingMuted = Color(hex: "8A8178")      // muted brown
-
-    // Garage palette (Figma "My Garage", nodes 500:2 / 496:2339)
-    static let garageInk = Color(hex: "262D43")              // card text, icons
-    static let garageTitle = Color(hex: "1F154E")            // "My Garage" heading
-    static let garageDot = Color(hex: "D5BDAF")              // heading full stop
-    static let garageMuted = Color(hex: "62748E")            // eyebrow, vehicle count
-    static let garageHairline = Color(hex: "E2E8F0")
-    static let garageCardFill = Color(hex: "F9F7F7")
-    static let garageCardBorderPrimary = Color(hex: "919791") // first card
-    static let garageCardBorder = Color(hex: "B5BDB5")        // stacked cards
-    static let garageGradientTop = Color(hex: "F4F4F4")
-    static let garageGradientEnd = Color(hex: "ECE2D3")
-    static let garageButtonFill = Color(hex: "F1F5F9")
-
-    // Settings palette (Figma "Settings", node 526:4677)
-    static let settingsMuted = Color(hex: "636978")          // captions, section numbers
-    static let settingsAccentDot = Color(hex: "7B9C81")      // heading full stop
-    static let settingsAvatarFill = Color(hex: "EEE9DF")     // avatar, export card
-    static let settingsChipFill = Color(hex: "EAE7E2")       // mileage picker
-    static let settingsBackBorder = Color(hex: "E4E2DE")
-    static let settingsLabel = Color(hex: "665F58")           // account row labels
-    static let settingsRowDivider = Color(hex: "E3DDD5")
+    // Settings
+    static var settingsMuted: Color { theme.mutedText }
+    static var settingsAccentDot: Color { theme.brand }
+    static var settingsAvatarFill: Color { theme.surfaceAlt }
+    static var settingsChipFill: Color { theme.surfaceAlt }
+    static var settingsBackBorder: Color { theme.border }
+    static var settingsLabel: Color { theme.mutedText }
+    static var settingsRowDivider: Color { theme.hairline }
 
     // Severity colors
     static func severityColor(_ severity: Severity) -> Color {

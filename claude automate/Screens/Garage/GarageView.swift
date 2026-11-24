@@ -443,11 +443,11 @@ struct MaintenanceItemRow: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text(item.name)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.quicksandScaled(.semibold, size: 14))
                     .foregroundStyle(Color.agForeground)
                 Spacer()
                 Text(item.status.rawValue)
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(.quicksandScaled(.semibold, size: 10))
                     .foregroundStyle(statusColor)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 2)
@@ -456,24 +456,24 @@ struct MaintenanceItemRow: View {
             }
 
             Text(item.description)
-                .font(.system(size: 12))
+                .font(.quicksandScaled(.regular, size: 12))
                 .foregroundStyle(Color.agMutedForeground)
                 .lineLimit(1)
 
             HStack(spacing: 12) {
                 if let dueDate = item.dueDate {
                     Label(dueDate.formatted(.dateTime.month(.abbreviated).day()), systemImage: "calendar")
-                        .font(.system(size: 11))
+                        .font(.quicksandScaled(.regular, size: 11))
                         .foregroundStyle(Color.agMutedForeground)
                 }
                 if let dueMileage = item.dueMileage {
                     Label("\(dueMileage.formatted()) mi", systemImage: "speedometer")
-                        .font(.system(size: 11))
+                        .font(.quicksandScaled(.regular, size: 11))
                         .foregroundStyle(Color.agMutedForeground)
                 }
                 Spacer()
                 Text(item.estimatedCostDisplay)
-                    .font(.system(size: 11))
+                    .font(.quicksandScaled(.regular, size: 11))
                     .foregroundStyle(Color.agMutedForeground)
             }
         }

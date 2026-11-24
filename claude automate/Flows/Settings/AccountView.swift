@@ -9,8 +9,8 @@ struct AccountView: View {
     @State private var isSendingReset = false
     @State private var resetAlert: ResetAlert?
 
-    private let ink = Color.garageInk
-    private let label = Color.settingsLabel
+    private var ink: Color { Color.garageInk }
+    private var label: Color { Color.settingsLabel }
 
     private var user: LocalUser? { authState.currentUser }
 

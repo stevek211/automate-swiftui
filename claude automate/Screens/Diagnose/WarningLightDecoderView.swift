@@ -23,7 +23,7 @@ struct WarningLightDecoderView: View {
                 ForEach(groupedLights, id: \.0) { category, lights in
                     VStack(alignment: .leading, spacing: AGSpacing.md) {
                         Text(category)
-                            .font(.poppinsTitle3)
+                            .font(.quicksandScaled(.semibold, size: 18))
                             .foregroundStyle(Color.agForeground)
 
                         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: AGSpacing.md) {
@@ -40,7 +40,7 @@ struct WarningLightDecoderView: View {
                                             .clipShape(Circle())
 
                                         Text(light.name)
-                                            .font(.poppinsCaption)
+                                            .font(.quicksandScaled(.medium, size: 12))
                                             .foregroundStyle(Color.agForeground)
                                             .multilineTextAlignment(.center)
                                             .lineLimit(2)
@@ -85,7 +85,7 @@ struct DiagnosticLightDetailView: View {
 
                         VStack(alignment: .leading, spacing: AGSpacing.xs) {
                             Text(light.name)
-                                .font(.poppinsTitle2)
+                                .font(.quicksandScaled(.semibold, size: 20))
                                 .foregroundStyle(Color.agForeground)
                             StatusPill(text: light.severity.rawValue, color: Color.severityColor(light.severity))
                         }
@@ -94,28 +94,28 @@ struct DiagnosticLightDetailView: View {
                     // Description
                     VStack(alignment: .leading, spacing: AGSpacing.sm) {
                         Text("What it means")
-                            .font(.poppinsHeadline)
+                            .font(.quicksandScaled(.semibold, size: 16))
                         Text(light.description)
-                            .font(.poppinsBody)
+                            .font(.quicksandScaled(.regular, size: 15))
                             .foregroundStyle(Color.agMutedForeground)
                     }
 
                     // Action
                     VStack(alignment: .leading, spacing: AGSpacing.sm) {
                         Text("What to do")
-                            .font(.poppinsHeadline)
+                            .font(.quicksandScaled(.semibold, size: 16))
                         Text(light.action)
-                            .font(.poppinsBody)
+                            .font(.quicksandScaled(.regular, size: 15))
                             .foregroundStyle(Color.agMutedForeground)
                     }
 
                     // Estimated cost
                     HStack {
                         Text("Estimated Cost")
-                            .font(.poppinsHeadline)
+                            .font(.quicksandScaled(.semibold, size: 16))
                         Spacer()
                         Text(light.estimatedCost)
-                            .font(.poppinsTitle3)
+                            .font(.quicksandScaled(.semibold, size: 18))
                             .foregroundStyle(Color.agPrimary)
                     }
                     .cardStyle()
@@ -123,14 +123,14 @@ struct DiagnosticLightDetailView: View {
                     // Common causes
                     VStack(alignment: .leading, spacing: AGSpacing.md) {
                         Text("Common Causes")
-                            .font(.poppinsHeadline)
+                            .font(.quicksandScaled(.semibold, size: 16))
                         ForEach(light.causes, id: \.self) { cause in
                             HStack(spacing: AGSpacing.md) {
                                 Image(systemName: "circle.fill")
                                     .font(.system(size: 6))
                                     .foregroundStyle(Color.agMutedForeground)
                                 Text(cause)
-                                    .font(.poppinsBody)
+                                    .font(.quicksandScaled(.regular, size: 15))
                                     .foregroundStyle(Color.agForeground)
                             }
                         }
@@ -156,7 +156,7 @@ struct StatusPill: View {
 
     var body: some View {
         Text(text)
-            .font(.poppinsCaption2)
+            .font(.quicksandScaled(.regular, size: 11))
             .foregroundStyle(color)
             .padding(.horizontal, AGSpacing.sm)
             .padding(.vertical, AGSpacing.xs)

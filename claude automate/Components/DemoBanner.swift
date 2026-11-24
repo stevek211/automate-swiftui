@@ -12,7 +12,7 @@ struct DemoBanner: View {
                     .font(.system(size: 12))
                     .foregroundStyle(Color.agAccent)
                 Text("Exploring demo data")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.quicksandScaled(.semibold, size: 12))
                     .foregroundStyle(Color.agForeground)
                 Spacer()
                 Button {
@@ -22,7 +22,7 @@ struct DemoBanner: View {
                 } label: {
                     HStack(spacing: 3) {
                         Text("Back to my garage")
-                            .font(.system(size: 11, weight: .semibold))
+                            .font(.quicksandScaled(.semibold, size: 11))
                         Image(systemName: "arrow.right")
                             .font(.system(size: 10, weight: .semibold))
                     }

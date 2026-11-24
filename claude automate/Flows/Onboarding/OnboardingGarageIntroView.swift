@@ -26,10 +26,10 @@ struct OnboardingGarageIntroView: View {
                     Text("LET'S BUILD YOUR GARAGE")
                         .font(.custom("Quicksand-SemiBold", size: 16))
                         .tracking(1.28)
-                        .foregroundStyle(Color(hex: "333333"))
+                        .foregroundStyle(Color.theme.ink)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 2)
-                        .background(Color(hex: "FFF8EC"))
+                        .background(Color.theme.accent.opacity(0.08))
                         .clipShape(Capsule())
                         .padding(.top, 19)
 
@@ -38,7 +38,7 @@ struct OnboardingGarageIntroView: View {
                         .tracking(-1.12)
                         .multilineTextAlignment(.center)
                         .lineSpacing(3)
-                        .foregroundStyle(Color(hex: "333333"))
+                        .foregroundStyle(Color.theme.ink)
                         .frame(width: contentWidth)
                         .padding(.top, 18)
 

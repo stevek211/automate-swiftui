@@ -9,7 +9,7 @@ struct ArticleDetailView: View {
                 // Meta
                 HStack(spacing: AGSpacing.md) {
                     Text(article.difficulty.rawValue)
-                        .font(.poppinsCaption2)
+                        .font(.quicksandScaled(.regular, size: 11))
                         .foregroundStyle(difficultyColor)
                         .padding(.horizontal, AGSpacing.sm)
                         .padding(.vertical, AGSpacing.xs)
@@ -17,23 +17,23 @@ struct ArticleDetailView: View {
                         .clipShape(Capsule())
 
                     Label("\(article.readTimeMinutes) min read", systemImage: "clock")
-                        .font(.poppinsCaption)
+                        .font(.quicksandScaled(.medium, size: 12))
                         .foregroundStyle(Color.agMutedForeground)
 
                     Spacer()
 
                     Text(article.category.rawValue)
-                        .font(.poppinsCaption)
+                        .font(.quicksandScaled(.medium, size: 12))
                         .foregroundStyle(Color.agMutedForeground)
                 }
 
                 // Title & description
                 Text(article.title)
-                    .font(.poppinsTitle)
+                    .font(.quicksandScaled(.bold, size: 22))
                     .foregroundStyle(Color.agForeground)
 
                 Text(article.description)
-                    .font(.poppinsBody)
+                    .font(.quicksandScaled(.regular, size: 15))
                     .foregroundStyle(Color.agMutedForeground)
 
                 Divider()
@@ -42,11 +42,11 @@ struct ArticleDetailView: View {
                 ForEach(article.sections, id: \.heading) { section in
                     VStack(alignment: .leading, spacing: AGSpacing.sm) {
                         Text(section.heading)
-                            .font(.poppinsTitle3)
+                            .font(.quicksandScaled(.semibold, size: 18))
                             .foregroundStyle(Color.agForeground)
 
                         Text(section.body)
-                            .font(.poppinsBody)
+                            .font(.quicksandScaled(.regular, size: 15))
                             .foregroundStyle(Color.agMutedForeground)
                             .lineSpacing(4)
                     }
@@ -57,12 +57,12 @@ struct ArticleDetailView: View {
                     Divider()
                     VStack(alignment: .leading, spacing: AGSpacing.md) {
                         Text("Related Systems")
-                            .font(.poppinsHeadline)
+                            .font(.quicksandScaled(.semibold, size: 16))
 
                         FlowLayout(spacing: AGSpacing.sm) {
                             ForEach(article.relatedSystemNames, id: \.self) { name in
                                 Text(name)
-                                    .font(.poppinsCaption)
+                                    .font(.quicksandScaled(.medium, size: 12))
                                     .foregroundStyle(Color.agPrimary)
                                     .padding(.horizontal, AGSpacing.md)
                                     .padding(.vertical, AGSpacing.sm)

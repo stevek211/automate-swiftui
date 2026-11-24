@@ -32,10 +32,10 @@ struct LearnView: View {
                 // Header
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Learn & Diagnose")
-                        .font(.system(size: 20, weight: .bold))
+                        .font(.quicksandScaled(.bold, size: 20))
                         .foregroundStyle(Color.agForeground)
                     Text("Find the fix and understand your car")
-                        .font(.system(size: 14))
+                        .font(.quicksandScaled(.regular, size: 14))
                         .foregroundStyle(Color.agMutedForeground)
                 }
 
@@ -45,7 +45,7 @@ struct LearnView: View {
                         .font(.system(size: 14))
                         .foregroundStyle(Color.agMutedForeground)
                     TextField("Search problems, systems & articles", text: $searchText)
-                        .font(.system(size: 16))
+                        .font(.quicksandScaled(.regular, size: 16))
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 12)
@@ -84,7 +84,7 @@ struct LearnView: View {
                                     .frame(height: 28)
 
                                 Text(system.name)
-                                    .font(.system(size: 11, weight: .semibold))
+                                    .font(.quicksandScaled(.semibold, size: 11))
                                     .foregroundStyle(Color.agForeground)
                                     .lineLimit(1)
                             }
@@ -139,7 +139,7 @@ struct LearnView: View {
 
     private func sectionHeader(_ title: String) -> some View {
         Text(title)
-            .font(.system(size: 14, weight: .semibold))
+            .font(.quicksandScaled(.semibold, size: 14))
             .foregroundStyle(Color.agForeground)
     }
 }
@@ -158,19 +158,19 @@ struct LearnArticleRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(article.title)
-                .font(.system(size: 14, weight: .semibold))
+                .font(.quicksandScaled(.semibold, size: 14))
                 .foregroundStyle(Color.agForeground)
                 .multilineTextAlignment(.leading)
 
             Text(article.description)
-                .font(.system(size: 12))
+                .font(.quicksandScaled(.regular, size: 12))
                 .foregroundStyle(Color.agMutedForeground)
                 .lineLimit(2)
                 .multilineTextAlignment(.leading)
 
             HStack(spacing: 8) {
                 Text(article.difficulty.rawValue)
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(.quicksandScaled(.semibold, size: 10))
                     .foregroundStyle(difficultyColor)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 2)
@@ -178,7 +178,7 @@ struct LearnArticleRow: View {
                     .clipShape(Capsule())
 
                 Label("\(article.readTimeMinutes) min", systemImage: "clock")
-                    .font(.system(size: 11))
+                    .font(.quicksandScaled(.regular, size: 11))
                     .foregroundStyle(Color.agMutedForeground)
 
                 Spacer()

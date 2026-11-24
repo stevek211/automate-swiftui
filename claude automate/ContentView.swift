@@ -90,8 +90,8 @@ private struct AutomateBottomNav: View {
     @Binding var selectedTab: AppTab
     @Namespace private var glassNamespace
 
-    private let activeColor = Color.garageTitle   // navy, matches "My Garage"
-    private let inactiveColor = Color(hex: "484C52")
+    private var activeColor: Color { Color.garageTitle }   // navy, matches "My Garage"
+    private var inactiveColor: Color { Color.theme.mutedText }
 
     var body: some View {
         GlassEffectContainer(spacing: 0) {
@@ -178,7 +178,7 @@ private struct ContentViewPreviewHost: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .padding(24)
         }
-        .background(Color(hex: "F5F6F7"))
+        .background(Color.theme.surfaceAlt)
         .safeAreaInset(edge: .bottom, spacing: 0) {
             AutomateBottomNav(selectedTab: $selectedTab)
         }

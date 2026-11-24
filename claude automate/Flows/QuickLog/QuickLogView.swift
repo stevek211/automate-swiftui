@@ -25,6 +25,8 @@ struct QuickLogView: View {
     @State private var receiptImageData: Data?
     @State private var editingReview = false
     @State private var showDiscardConfirm = false
+    /// The text field being edited, if any. While set, the bottom bar is hidden so it can't cover the field.
+    @FocusState private var focusedField: QuickLogField?
 
     var vehicle: Vehicle? { appState.selectedVehicle }
 
@@ -51,7 +53,7 @@ struct QuickLogView: View {
                                 Image(systemName: "arrow.left")
                                     .font(.system(size: 14))
                                 Text("Back")
-                                    .font(.system(size: 14, weight: .medium))
+                                    .font(.quicksandScaled(.medium, size: 14))
                             }
                             .foregroundStyle(Color.agMutedForeground)
                             .padding(.horizontal, 10)
@@ -67,7 +69,7 @@ struct QuickLogView: View {
                     Spacer()
 
                     Text("QUICK LOG")
-                        .font(.system(size: 10, weight: .semibold))
+                        .font(.quicksandScaled(.semibold, size: 12))
                         .foregroundStyle(Color.agMutedForeground)
                         .tracking(1)
 
@@ -104,24 +106,48 @@ struct QuickLogView: View {
                 }
 
                 // Content
-                ScrollView {
-                    VStack(spacing: 20) {
-                        switch step {
-                        case .choose: chooseView
-                        case .services: servicesView
-                        case .details: detailsView
-                        case .review: reviewView
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        VStack(spacing: 20) {
+                            switch step {
+                            case .choose: chooseView
+                            case .services: servicesView
+                            case .details: detailsView
+                            case .review: reviewView
+                            }
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 100)
+                    }
+                    // Bring the field being edited fully above the keyboard once it has opened.
+                    .onChange(of: focusedField) { _, field in
+                        guard let field else { return }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                            withAnimation(.easeOut(duration: 0.25)) {
+                                proxy.scrollTo(field, anchor: .center)
+                            }
                         }
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 100)
                 }
 
-                // Bottom CTA
-                bottomCTA
+                // Bottom CTA — hidden while typing so the keyboard doesn't push it over the field
+                if focusedField == nil {
+                    bottomCTA
+                }
             }
             .background(Color.agBackground)
             .navigationBarHidden(true)
+            .scrollDismissesKeyboard(.interactively)
+            .toolbar {
+                // Number pads have no return key, so give them a way to close the keyboard.
+                ToolbarItemGroup(placement: .keyboard) {
+                    if focusedField == .cost || focusedField == .mileage {
+                        Spacer()
+                        Button("Done") { focusedField = nil }
+                            .font(.quicksandScaled(.semibold, size: 16))
+                    }
+                }
+            }
             .onAppear {
                 mileageText = vehicle.map { String($0.mileage) } ?? ""
             }
@@ -138,12 +164,12 @@ struct QuickLogView: View {
 
     var chooseView: some View {
         VStack(spacing: 16) {
-            VStack(spacing: 4) {
+            VStack(spacing: 6) {
                 Text("Log Service")
-                    .font(.system(size: 20, weight: .bold))
+                    .font(.quicksandScaled(.bold, size: 26))
                     .foregroundStyle(Color.agForeground)
                 Text("How would you like to log it?")
-                    .font(.system(size: 14))
+                    .font(.quicksandScaled(.regular, size: 16))
                     .foregroundStyle(Color.agMutedForeground)
             }
             .padding(.top, 16)
@@ -158,17 +184,17 @@ struct QuickLogView: View {
                     ZStack {
                         RoundedRectangle(cornerRadius: 12)
                             .fill(Color.agPrimary.opacity(0.1))
-                            .frame(width: 48, height: 48)
+                            .frame(width: 52, height: 52)
                         Image(systemName: "camera.fill")
-                            .font(.system(size: 20))
+                            .font(.system(size: 22))
                             .foregroundStyle(Color.agPrimary)
                     }
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: 4) {
                         Text("Upload Receipt Photo")
-                            .font(.system(size: 14, weight: .bold))
+                            .font(.quicksandScaled(.bold, size: 17))
                             .foregroundStyle(Color.agForeground)
                         Text("Coming soon — auto-extract services & cost")
-                            .font(.system(size: 12))
+                            .font(.quicksandScaled(.regular, size: 14))
                             .foregroundStyle(Color.agMutedForeground)
                     }
                     Spacer()
@@ -191,17 +217,17 @@ struct QuickLogView: View {
                     ZStack {
                         RoundedRectangle(cornerRadius: 12)
                             .fill(Color.agMuted)
-                            .frame(width: 48, height: 48)
+                            .frame(width: 52, height: 52)
                         Image(systemName: "pencil")
-                            .font(.system(size: 20))
+                            .font(.system(size: 22))
                             .foregroundStyle(Color.agMutedForeground)
                     }
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: 4) {
                         Text("Enter Manually")
-                            .font(.system(size: 14, weight: .bold))
+                            .font(.quicksandScaled(.bold, size: 17))
                             .foregroundStyle(Color.agForeground)
                         Text("Select services and fill in details yourself")
-                            .font(.system(size: 12))
+                            .font(.quicksandScaled(.regular, size: 14))
                             .foregroundStyle(Color.agMutedForeground)
                     }
                     Spacer()
@@ -224,10 +250,10 @@ struct QuickLogView: View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(spacing: 4) {
                 Text("What Was Done?")
-                    .font(.system(size: 18, weight: .bold))
+                    .font(.quicksandScaled(.bold, size: 18))
                     .foregroundStyle(Color.agForeground)
                 Text("Select all services performed")
-                    .font(.system(size: 14))
+                    .font(.quicksandScaled(.regular, size: 14))
                     .foregroundStyle(Color.agMutedForeground)
             }
             .frame(maxWidth: .infinity)
@@ -246,7 +272,7 @@ struct QuickLogView: View {
                                     .font(.system(size: 10, weight: .bold))
                             }
                             Text(service)
-                                .font(.system(size: 12, weight: .medium))
+                                .font(.quicksandScaled(.medium, size: 12))
                                 .lineLimit(1)
                         }
                         .foregroundStyle(isSelected ? .white : Color.agForeground)
@@ -263,7 +289,7 @@ struct QuickLogView: View {
             // Custom service
             HStack(spacing: 8) {
                 TextField("Other service...", text: $customService)
-                    .font(.system(size: 14))
+                    .font(.quicksandScaled(.regular, size: 14))
                     .padding(.horizontal, 12)
                     .frame(height: 40)
                     .background(Color.agCard)
@@ -272,6 +298,8 @@ struct QuickLogView: View {
                         RoundedRectangle(cornerRadius: 12)
                             .strokeBorder(Color.agBorder, lineWidth: 1)
                     )
+                    .focused($focusedField, equals: .customService)
+                    .id(QuickLogField.customService)
                     .onSubmit { addCustomService() }
 
                 Button {
@@ -293,7 +321,7 @@ struct QuickLogView: View {
             if !selectedServices.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("SELECTED (\(selectedServices.count))")
-                        .font(.system(size: 10, weight: .semibold))
+                        .font(.quicksandScaled(.semibold, size: 10))
                         .foregroundStyle(Color.agMutedForeground)
                         .tracking(0.5)
 
@@ -301,7 +329,7 @@ struct QuickLogView: View {
                         ForEach(selectedServices, id: \.self) { service in
                             HStack(spacing: 4) {
                                 Text(service)
-                                    .font(.system(size: 12, weight: .medium))
+                                    .font(.quicksandScaled(.medium, size: 12))
                                     .foregroundStyle(Color.agPrimary)
                                 Button {
                                     selectedServices.removeAll { $0 == service }
@@ -336,10 +364,10 @@ struct QuickLogView: View {
         VStack(spacing: 12) {
             VStack(spacing: 4) {
                 Text("Fill In Details")
-                    .font(.system(size: 18, weight: .bold))
+                    .font(.quicksandScaled(.bold, size: 18))
                     .foregroundStyle(Color.agForeground)
                 Text("Add cost, shop, and mileage")
-                    .font(.system(size: 14))
+                    .font(.quicksandScaled(.regular, size: 14))
                     .foregroundStyle(Color.agMutedForeground)
             }
             .frame(maxWidth: .infinity)
@@ -353,23 +381,29 @@ struct QuickLogView: View {
             detailField(label: "TOTAL COST") {
                 HStack {
                     Text("$")
-                        .font(.system(size: 16))
+                        .font(.quicksandScaled(.regular, size: 16))
                         .foregroundStyle(Color.agMutedForeground)
                     TextField("0.00", text: $costText)
-                        .font(.system(size: 16, weight: .medium))
+                        .font(.quicksandScaled(.medium, size: 16))
                         .keyboardType(.decimalPad)
+                        .focused($focusedField, equals: .cost)
+                        .id(QuickLogField.cost)
                 }
             }
 
             detailField(label: "SHOP / LOCATION") {
                 TextField("e.g. Jiffy Lube", text: $shop)
-                    .font(.system(size: 16, weight: .medium))
+                    .font(.quicksandScaled(.medium, size: 16))
+                    .focused($focusedField, equals: .shop)
+                    .id(QuickLogField.shop)
             }
 
             detailField(label: "MILEAGE") {
                 TextField(vehicle.map { String($0.mileage) } ?? "0", text: $mileageText)
-                    .font(.system(size: 16, weight: .medium))
+                    .font(.quicksandScaled(.medium, size: 16))
                     .keyboardType(.numberPad)
+                    .focused($focusedField, equals: .mileage)
+                    .id(QuickLogField.mileage)
             }
 
             // Receipt photo
@@ -380,7 +414,7 @@ struct QuickLogView: View {
                             .font(.system(size: 14))
                             .foregroundStyle(Color.agPrimary)
                         Text(receiptImageData != nil ? "Photo added" : "Add photo")
-                            .font(.system(size: 14, weight: .medium))
+                            .font(.quicksandScaled(.medium, size: 14))
                             .foregroundStyle(receiptImageData != nil ? Color.agSuccess : Color.agPrimary)
                     }
                 }
@@ -389,11 +423,11 @@ struct QuickLogView: View {
             // Selected services reminder
             VStack(alignment: .leading, spacing: 6) {
                 Text("SERVICES")
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(.quicksandScaled(.semibold, size: 10))
                     .foregroundStyle(Color.agMutedForeground)
                     .tracking(0.5)
                 Text(selectedServices.joined(separator: ", "))
-                    .font(.system(size: 14, weight: .medium))
+                    .font(.quicksandScaled(.medium, size: 14))
                     .foregroundStyle(Color.agForeground)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -420,10 +454,10 @@ struct QuickLogView: View {
         VStack(spacing: 16) {
             VStack(spacing: 4) {
                 Text("Confirm & Save")
-                    .font(.system(size: 18, weight: .bold))
+                    .font(.quicksandScaled(.bold, size: 18))
                     .foregroundStyle(Color.agForeground)
                 Text("Everything look right?")
-                    .font(.system(size: 14))
+                    .font(.quicksandScaled(.regular, size: 14))
                     .foregroundStyle(Color.agMutedForeground)
             }
             .frame(maxWidth: .infinity)
@@ -432,7 +466,7 @@ struct QuickLogView: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     Text("SERVICE DETAILS")
-                        .font(.system(size: 10, weight: .bold))
+                        .font(.quicksandScaled(.bold, size: 10))
                         .foregroundStyle(Color.agMutedForeground)
                         .tracking(0.5)
                     Spacer()
@@ -443,7 +477,7 @@ struct QuickLogView: View {
                             Image(systemName: "pencil")
                                 .font(.system(size: 10))
                             Text("Edit")
-                                .font(.system(size: 12, weight: .medium))
+                                .font(.quicksandScaled(.medium, size: 12))
                         }
                         .foregroundStyle(Color.agPrimary)
                     }
@@ -465,7 +499,7 @@ struct QuickLogView: View {
             )
 
             Text("Tap Edit to fix any incorrect info")
-                .font(.system(size: 12))
+                .font(.quicksandScaled(.regular, size: 12))
                 .foregroundStyle(Color.agMutedForeground)
         }
     }
@@ -485,7 +519,7 @@ struct QuickLogView: View {
                     } label: {
                         HStack(spacing: 6) {
                             Text("Continue")
-                                .font(.system(size: 14, weight: .semibold))
+                                .font(.quicksandScaled(.semibold, size: 14))
                             Image(systemName: "chevron.right")
                                 .font(.system(size: 12, weight: .semibold))
                         }
@@ -505,7 +539,7 @@ struct QuickLogView: View {
                     } label: {
                         HStack(spacing: 6) {
                             Text("Review")
-                                .font(.system(size: 14, weight: .semibold))
+                                .font(.quicksandScaled(.semibold, size: 14))
                             Image(systemName: "chevron.right")
                                 .font(.system(size: 12, weight: .semibold))
                         }
@@ -525,7 +559,7 @@ struct QuickLogView: View {
                             Image(systemName: "checkmark")
                                 .font(.system(size: 14, weight: .bold))
                             Text("Save to Service History")
-                                .font(.system(size: 14, weight: .semibold))
+                                .font(.quicksandScaled(.semibold, size: 14))
                         }
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
@@ -540,7 +574,7 @@ struct QuickLogView: View {
                 // Vehicle context
                 if let vehicle, step != .choose {
                     Text("Logging for **\(vehicle.displayName)**")
-                        .font(.system(size: 11))
+                        .font(.quicksandScaled(.regular, size: 11))
                         .foregroundStyle(Color.agMutedForeground)
                 }
             }
@@ -556,7 +590,7 @@ struct QuickLogView: View {
     func detailField(label: String, @ViewBuilder content: () -> some View) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(label)
-                .font(.system(size: 10, weight: .semibold))
+                .font(.quicksandScaled(.semibold, size: 10))
                 .foregroundStyle(Color.agMutedForeground)
                 .tracking(0.5)
             content()
@@ -583,12 +617,12 @@ struct QuickLogView: View {
     func reviewRow(_ label: String, _ value: String) -> some View {
         HStack(alignment: .top) {
             Text(label)
-                .font(.system(size: 14))
+                .font(.quicksandScaled(.regular, size: 14))
                 .foregroundStyle(Color.agMutedForeground)
                 .frame(width: 70, alignment: .leading)
             Spacer()
             Text(value)
-                .font(.system(size: 14, weight: .semibold))
+                .font(.quicksandScaled(.semibold, size: 14))
                 .foregroundStyle(Color.agForeground)
                 .multilineTextAlignment(.trailing)
         }
@@ -648,4 +682,8 @@ struct QuickLogView: View {
 #Preview {
     QuickLogView()
         .environment(AppState())
+}
+
+private enum QuickLogField: Hashable {
+    case customService, cost, shop, mileage
 }

@@ -89,21 +89,21 @@ struct NoiseDiagnosisView: View {
 
                             VStack(alignment: .leading, spacing: AGSpacing.xs) {
                                 Text(diagnosis.diagnosis)
-                                    .font(.poppinsTitle2)
+                                    .font(.quicksandScaled(.semibold, size: 20))
                                 StatusPill(text: diagnosis.severity.rawValue + " Severity", color: Color.severityColor(diagnosis.severity))
                             }
                         }
 
                         Text(diagnosis.description)
-                            .font(.poppinsBody)
+                            .font(.quicksandScaled(.regular, size: 15))
                             .foregroundStyle(Color.agMutedForeground)
 
                         HStack {
                             Text("Estimated Repair Cost")
-                                .font(.poppinsHeadline)
+                                .font(.quicksandScaled(.semibold, size: 16))
                             Spacer()
                             Text(diagnosis.estimatedCost)
-                                .font(.poppinsTitle3)
+                                .font(.quicksandScaled(.semibold, size: 18))
                                 .foregroundStyle(Color.agPrimary)
                         }
                         .cardStyle()
@@ -133,7 +133,7 @@ struct NoiseDiagnosisView: View {
     func questionSection(title: String, options: [String], selected: Binding<String?>) -> some View {
         VStack(alignment: .leading, spacing: AGSpacing.md) {
             Text(title)
-                .font(.poppinsTitle3)
+                .font(.quicksandScaled(.semibold, size: 18))
                 .foregroundStyle(Color.agForeground)
 
             FlowLayout(spacing: AGSpacing.sm) {
@@ -142,7 +142,7 @@ struct NoiseDiagnosisView: View {
                         withAnimation { selected.wrappedValue = option }
                     } label: {
                         Text(option)
-                            .font(.poppinsCallout)
+                            .font(.quicksandScaled(.regular, size: 14))
                             .foregroundStyle(selected.wrappedValue == option ? .white : Color.agForeground)
                             .padding(.horizontal, AGSpacing.lg)
                             .padding(.vertical, AGSpacing.md)

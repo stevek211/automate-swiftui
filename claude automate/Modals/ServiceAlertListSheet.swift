@@ -29,7 +29,7 @@ struct ServiceAlertListSheet: View {
                                 Image(systemName: "arrow.left")
                                     .font(.system(size: 12, weight: .medium))
                                 Text(vehicle.fullDisplayName)
-                                    .font(.system(size: 13, weight: .medium))
+                                    .font(.quicksandScaled(.medium, size: 13))
                             }
                             .foregroundStyle(Color.agMutedForeground)
                             .padding(.horizontal, 12)
@@ -43,7 +43,7 @@ struct ServiceAlertListSheet: View {
                     // ── Needs Attention (Overdue) ──────────────────
                     if !overdueItems.isEmpty {
                         Text("Needs Attention")
-                            .font(.system(size: 24, weight: .bold))
+                            .font(.quicksandScaled(.bold, size: 24))
                             .foregroundStyle(Color.agForeground)
 
                         ForEach(overdueItems) { item in
@@ -54,7 +54,7 @@ struct ServiceAlertListSheet: View {
                     // ── Coming Up Soon ──────────────────────────────
                     if !dueSoonItems.isEmpty {
                         Text("Coming Up Soon")
-                            .font(.system(size: 24, weight: .bold))
+                            .font(.quicksandScaled(.bold, size: 24))
                             .foregroundStyle(Color.agForeground)
                             .padding(.top, overdueItems.isEmpty ? 0 : 8)
 
@@ -70,9 +70,9 @@ struct ServiceAlertListSheet: View {
                                 .font(.system(size: 48))
                                 .foregroundStyle(Color.agSuccess)
                             Text("All caught up!")
-                                .font(.poppinsTitle3)
+                                .font(.quicksandScaled(.semibold, size: 18))
                             Text("No maintenance alerts at this time.")
-                                .font(.poppinsBody)
+                                .font(.quicksandScaled(.regular, size: 15))
                                 .foregroundStyle(Color.agMutedForeground)
                         }
                         .frame(maxWidth: .infinity)
@@ -131,7 +131,7 @@ struct MaintenanceAlertCard: View {
                     .fill(style.dotColor)
                     .frame(width: 10, height: 10)
                 Text(item.name)
-                    .font(.system(size: 16, weight: .bold))
+                    .font(.quicksandScaled(.bold, size: 16))
                     .foregroundStyle(Color.agForeground)
             }
 
@@ -140,11 +140,11 @@ struct MaintenanceAlertCard: View {
                 let remaining = dueMileage - (appState.selectedVehicle?.mileage ?? 0)
                 if remaining > 0 {
                     Text("Due in ~\(remaining.formatted()) miles (≈ \(dueMileage.formatted()) mi)")
-                        .font(.system(size: 13))
+                        .font(.quicksandScaled(.regular, size: 13))
                         .foregroundStyle(Color.agMutedForeground)
                 } else {
                     Text("Overdue by ~\(abs(remaining).formatted()) miles")
-                        .font(.system(size: 13))
+                        .font(.quicksandScaled(.regular, size: 13))
                         .foregroundStyle(Color.agDestructive)
                 }
             }
@@ -152,11 +152,11 @@ struct MaintenanceAlertCard: View {
             // "WHY IT MATTERS" box
             VStack(alignment: .leading, spacing: 6) {
                 Text("WHY IT MATTERS")
-                    .font(.system(size: 11, weight: .bold))
+                    .font(.quicksandScaled(.bold, size: 11))
                     .foregroundStyle(style.whyItMattersColor)
 
                 Text(item.description)
-                    .font(.system(size: 13))
+                    .font(.quicksandScaled(.regular, size: 13))
                     .foregroundStyle(Color.agMutedForeground)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -173,14 +173,14 @@ struct MaintenanceAlertCard: View {
             if item.estimatedCostLow > 0 || item.estimatedCostHigh > 0 {
                 HStack(spacing: 4) {
                     Text("Typical cost:")
-                        .font(.system(size: 12))
+                        .font(.quicksandScaled(.regular, size: 12))
                         .foregroundStyle(Color.agMutedForeground)
                     Text("$\(Int(item.estimatedCostLow))–\(Int(item.estimatedCostHigh)) at a shop")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.quicksandScaled(.medium, size: 12))
                         .foregroundStyle(Color.agForeground)
                     if item.diyDifficulty <= 2 {
                         Text("· $\(Int(item.estimatedCostLow / 2))–\(Int(item.estimatedCostHigh / 2)) DIY")
-                            .font(.system(size: 12))
+                            .font(.quicksandScaled(.regular, size: 12))
                             .foregroundStyle(Color.agMutedForeground)
                     }
                 }
@@ -195,7 +195,7 @@ struct MaintenanceAlertCard: View {
                         Image(systemName: "text.bubble.fill")
                             .font(.system(size: 12))
                         Text("Learn more")
-                            .font(.system(size: 13, weight: .medium))
+                            .font(.quicksandScaled(.medium, size: 13))
                     }
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
@@ -212,7 +212,7 @@ struct MaintenanceAlertCard: View {
                         Image(systemName: "clock.fill")
                             .font(.system(size: 12))
                         Text("Set reminder")
-                            .font(.system(size: 13, weight: .medium))
+                            .font(.quicksandScaled(.medium, size: 13))
                     }
                     .foregroundStyle(Color.agForeground)
                     .frame(maxWidth: .infinity)

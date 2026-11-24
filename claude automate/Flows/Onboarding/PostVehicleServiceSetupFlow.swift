@@ -68,26 +68,26 @@ struct PostVehicleServiceSetupFlow: View {
             VStack(spacing: 0) {
                 Text("\(vehicle.year, format: .number.grouping(.never)) \(vehicle.make) \(vehicle.model)")
                     .font(Font.custom("Quicksand", size: 14))
-                    .foregroundStyle(Color(red: 0.42, green: 0.42, blue: 0.42))
+                    .foregroundStyle(Color.theme.mutedText)
                     .padding(.bottom, 12)
 
                 Text("Let's protect you\nat the shop")
                     .font(Font.custom("Quicksand", size: 28).weight(.medium))
-                    .foregroundStyle(Color(red: 0.23, green: 0.23, blue: 0.23))
+                    .foregroundStyle(Color.theme.ink)
                     .multilineTextAlignment(.center)
                     .lineSpacing(7)
                     .padding(.bottom, 20)
 
                 Text("Tell us what's been done and we'll tell you exactly what your \(vehicle.model) needs")
                     .font(Font.custom("Quicksand", size: 16))
-                    .foregroundStyle(Color(red: 0.42, green: 0.42, blue: 0.42))
+                    .foregroundStyle(Color.theme.mutedText)
                     .multilineTextAlignment(.center)
                     .lineSpacing(10)
                     .padding(.horizontal, 40)
                     .padding(.bottom, 28)
 
                 HStack(spacing: 6) {
-                    Circle().fill(Color(red: 0.83, green: 0.64, blue: 0.45)).frame(width: 10, height: 10)
+                    Circle().fill(Color.theme.secondary).frame(width: 10, height: 10)
                     ForEach(0..<4, id: \.self) { _ in
                         Circle().fill(Color.black.opacity(0.1)).frame(width: 8, height: 8)
                     }
@@ -104,7 +104,7 @@ struct PostVehicleServiceSetupFlow: View {
                             .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)
                             .frame(height: 48)
-                            .background(Color(red: 0.83, green: 0.64, blue: 0.45))
+                            .background(Color.theme.secondary)
                             .clipShape(RoundedRectangle(cornerRadius: 14))
                             .overlay(
                                 RoundedRectangle(cornerRadius: 14)
@@ -119,7 +119,7 @@ struct PostVehicleServiceSetupFlow: View {
                     } label: {
                         Text("Skip for now — I'll add this later")
                             .font(Font.custom("Quicksand", size: 14).weight(.medium))
-                            .foregroundStyle(Color(red: 0.42, green: 0.42, blue: 0.42))
+                            .foregroundStyle(Color.theme.mutedText)
                             .frame(maxWidth: .infinity)
                             .frame(height: 36)
                     }
@@ -153,14 +153,14 @@ struct PostVehicleServiceSetupFlow: View {
                     heroIcon(for: screens[currentScreen])
                         .padding(.top, 38)
                     Text(questionTitle(for: screens[currentScreen]))
-                        .font(.system(size: 22, weight: .medium))
+                        .font(.quicksandScaled(.medium, size: 22))
                         .foregroundStyle(Color.agForeground)
                         .multilineTextAlignment(.center)
                         .lineSpacing(4)
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.horizontal, 20)
                     Text(questionSubtitle(for: screens[currentScreen]))
-                        .font(.system(size: 14))
+                        .font(.quicksandScaled(.regular, size: 14))
                         .foregroundStyle(Color.agMutedForeground)
                         .multilineTextAlignment(.center)
                         .frame(maxWidth: .infinity, alignment: .center)
@@ -188,14 +188,14 @@ struct PostVehicleServiceSetupFlow: View {
                     VStack(alignment: .center, spacing: 12) {
                         Text(questionTitle(for: "oil"))
                             .font(Font.custom("Quicksand", size: 22).weight(.medium))
-                            .foregroundStyle(Color(red: 0.23, green: 0.23, blue: 0.23))
+                            .foregroundStyle(Color.theme.ink)
                             .multilineTextAlignment(.center)
                             .frame(width: 324, alignment: .top)
                             .fixedSize(horizontal: false, vertical: true)
 
                         Text(questionSubtitle(for: "oil"))
                             .font(Font.custom("Quicksand", size: 14))
-                            .foregroundStyle(Color(red: 0.42, green: 0.42, blue: 0.42))
+                            .foregroundStyle(Color.theme.mutedText)
                             .multilineTextAlignment(.center)
                             .frame(width: 367, alignment: .top)
                             .fixedSize(horizontal: false, vertical: true)
@@ -242,14 +242,14 @@ struct PostVehicleServiceSetupFlow: View {
                     VStack(alignment: .center, spacing: 12) {
                         Text(questionTitle(for: "tire"))
                             .font(Font.custom("Quicksand", size: 22).weight(.medium))
-                            .foregroundStyle(Color(red: 0.23, green: 0.23, blue: 0.23))
+                            .foregroundStyle(Color.theme.ink)
                             .multilineTextAlignment(.center)
                             .frame(width: 354, alignment: .top)
                             .fixedSize(horizontal: false, vertical: true)
 
                         Text(questionSubtitle(for: "tire"))
                             .font(Font.custom("Quicksand", size: 14))
-                            .foregroundStyle(Color(red: 0.42, green: 0.42, blue: 0.42))
+                            .foregroundStyle(Color.theme.mutedText)
                             .multilineTextAlignment(.center)
                             .frame(width: 354, alignment: .top)
                             .fixedSize(horizontal: false, vertical: true)
@@ -283,7 +283,7 @@ struct PostVehicleServiceSetupFlow: View {
                         }
                     } label: {
                         Text("← Back")
-                            .font(.system(size: 14, weight: .medium))
+                            .font(.quicksandScaled(.medium, size: 14))
                             .foregroundStyle(Color.agMutedForeground)
                     }
                     .buttonStyle(.plain)
@@ -294,14 +294,14 @@ struct PostVehicleServiceSetupFlow: View {
                         skipAndAdvance()
                     } label: {
                         Text("Skip")
-                            .font(.system(size: 14, weight: .medium))
+                            .font(.quicksandScaled(.medium, size: 14))
                             .foregroundStyle(Color.agMutedForeground)
                     }
                     .buttonStyle(.plain)
                 }
 
                 Text("\(currentScreen + 1) of \(screens.count)")
-                    .font(.system(size: 12))
+                    .font(.quicksandScaled(.regular, size: 12))
                     .foregroundStyle(Color.agMutedForeground)
             }
 
@@ -309,7 +309,7 @@ struct PostVehicleServiceSetupFlow: View {
             HStack(spacing: 6) {
                 ForEach(0..<screens.count, id: \.self) { i in
                     Capsule()
-                        .fill(i <= currentScreen ? Color(red: 0.83, green: 0.64, blue: 0.45) : Color.agForeground.opacity(0.04))
+                        .fill(i <= currentScreen ? Color.theme.secondary : Color.agForeground.opacity(0.04))
                         .frame(height: 6)
                 }
             }
@@ -464,14 +464,14 @@ struct PostVehicleServiceSetupFlow: View {
                 } label: {
                     Text(opt.label)
                         .font(Font.custom("Quicksand", size: 14).weight(.medium))
-                        .foregroundStyle(selected ? Color(red: 0.83, green: 0.64, blue: 0.45) : Color(red: 0.23, green: 0.23, blue: 0.23))
+                        .foregroundStyle(selected ? Color.theme.secondary : Color.theme.ink)
                         .frame(maxWidth: .infinity)
                         .frame(height: 49)
-                        .background(selected ? Color(red: 0.83, green: 0.64, blue: 0.45).opacity(0.1) : Color.white)
+                        .background(selected ? Color.theme.secondary.opacity(0.1) : Color.white)
                         .clipShape(RoundedRectangle(cornerRadius: 14))
                         .overlay(
                             RoundedRectangle(cornerRadius: 14)
-                                .strokeBorder(selected ? Color(red: 0.83, green: 0.64, blue: 0.45).opacity(0.3) : Color.black.opacity(0.1), lineWidth: 0.5)
+                                .strokeBorder(selected ? Color.theme.secondary.opacity(0.3) : Color.black.opacity(0.1), lineWidth: 0.5)
                         )
                 }
                 .buttonStyle(ScaleButtonStyle())
@@ -492,10 +492,10 @@ struct PostVehicleServiceSetupFlow: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(opt.title)
                                 .font(Font.custom("Quicksand", size: 14).weight(.medium))
-                                .foregroundStyle(Color(red: 0.23, green: 0.23, blue: 0.23))
+                                .foregroundStyle(Color.theme.ink)
                             Text(opt.subtitle)
                                 .font(Font.custom("Quicksand", size: 12).weight(.medium))
-                                .foregroundStyle(Color(red: 0.42, green: 0.42, blue: 0.42))
+                                .foregroundStyle(Color.theme.mutedText)
                         }
                         Spacer()
                         if selected {
@@ -506,11 +506,11 @@ struct PostVehicleServiceSetupFlow: View {
                     }
                     .padding(.horizontal, 16)
                     .frame(minHeight: 67)
-                    .background(selected ? Color(red: 0.83, green: 0.64, blue: 0.45).opacity(0.08) : Color.white)
+                    .background(selected ? Color.theme.secondary.opacity(0.08) : Color.white)
                     .clipShape(RoundedRectangle(cornerRadius: 14))
                     .overlay(
                         RoundedRectangle(cornerRadius: 14)
-                            .strokeBorder(selected ? Color(red: 0.83, green: 0.64, blue: 0.45).opacity(0.4) : Color.black.opacity(0.2), lineWidth: 0.5)
+                            .strokeBorder(selected ? Color.theme.secondary.opacity(0.4) : Color.black.opacity(0.2), lineWidth: 0.5)
                     )
                 }
                 .buttonStyle(ScaleButtonStyle())
@@ -522,7 +522,7 @@ struct PostVehicleServiceSetupFlow: View {
         Text(text)
             .font(Font.custom("Quicksand", size: 13))
             .tracking(0.3)
-            .foregroundStyle(Color(red: 0.45, green: 0.45, blue: 0.45))
+            .foregroundStyle(Color.theme.mutedText)
             .textCase(.none)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -540,12 +540,12 @@ struct PostVehicleServiceSetupFlow: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(label)
                 .font(Font.custom("Quicksand", size: 14).weight(.medium))
-                .foregroundStyle(Color(red: 0.23, green: 0.23, blue: 0.23))
+                .foregroundStyle(Color.theme.ink)
             if let context {
                 Text(context)
                     .font(Font.custom("Quicksand", size: 11))
                     .underline()
-                    .foregroundStyle(Color(red: 0.42, green: 0.42, blue: 0.42))
+                    .foregroundStyle(Color.theme.mutedText)
             }
             let exceedsOdometer = mileageExceedsOdometer(text.wrappedValue)
             TextField(placeholder, text: text)
@@ -617,7 +617,7 @@ struct PostVehicleServiceSetupFlow: View {
                 .frame(height: 44)
                 .background(
                     RoundedRectangle(cornerRadius: 5)
-                        .fill(Color(red: 0.83, green: 0.64, blue: 0.45))
+                        .fill(Color.theme.secondary)
                         .shadow(color: .black, radius: 0, x: 4, y: 4)
                 )
                 .overlay(

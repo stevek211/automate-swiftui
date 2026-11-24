@@ -31,14 +31,14 @@ struct SignUpView: View {
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 250, height: 100)
-                    .shadow(color: Color(red: 0, green: 0.73, blue: 0.65).opacity(0.20), radius: 50, x: 0, y: 25)
+                    .shadow(color: Color.theme.brand.opacity(0.20), radius: 50, x: 0, y: 25)
 
                 Spacer().frame(height: 20)
 
                 // Title
                 Text(isLogin ? "Welcome back" : "Create an account")
                     .font(.custom("Quicksand-SemiBold", size: 28))
-                    .foregroundColor(Color(red: 0.06, green: 0.09, blue: 0.16))
+                    .foregroundColor(Color.theme.ink)
 
                 Spacer().frame(height: 28)
 
@@ -87,10 +87,10 @@ struct SignUpView: View {
                     HStack(spacing: 0) {
                         Text(isLogin ? "New here? " : "Already have an account? ")
                             .font(.custom("Quicksand-Light", size: 12))
-                            .foregroundStyle(Color(red: 0.42, green: 0.45, blue: 0.51))
+                            .foregroundStyle(Color.theme.mutedText)
                         Text(isLogin ? "Create an account" : "Log in")
                             .font(.custom("Quicksand-Regular", size: 12))
-                            .foregroundStyle(Color(red: 0.60, green: 0.63, blue: 0.69))
+                            .foregroundStyle(Color.theme.faintText)
                             .underline()
                     }
                 }
@@ -106,7 +106,7 @@ struct SignUpView: View {
                 VStack {
                     Spacer()
                     Text(socialAuthError)
-                        .font(.custom("Poppins-Regular", size: 13))
+                        .font(.quicksandScaled(.regular, size: 13))
                         .foregroundStyle(.white)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 10)
@@ -125,7 +125,7 @@ struct SignUpView: View {
                 Button(action: onBack) {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 16, weight: .medium))
-                        .foregroundStyle(Color(hex: "101828"))
+                        .foregroundStyle(Color.theme.ink)
                 }
             }
         }
@@ -146,13 +146,13 @@ struct SignUpView: View {
                 icon().frame(width: 20, height: 20)
                 Text(label)
                     .font(.custom("Quicksand-Medium", size: 14))
-                    .foregroundStyle(Color(red: 0.06, green: 0.09, blue: 0.16))
+                    .foregroundStyle(Color.theme.ink)
             }
             .frame(maxWidth: .infinity)
             .frame(height: 52)
             .background(.white)
             .clipShape(Capsule())
-            .overlay(Capsule().strokeBorder(Color(red: 0.63, green: 0.63, blue: 0.63), lineWidth: 0.5))
+            .overlay(Capsule().strokeBorder(Color.theme.faintText, lineWidth: 0.5))
         }
         .buttonStyle(OnboardingScaleStylePublic())
     }
@@ -162,7 +162,7 @@ struct SignUpView: View {
     private var appleIcon: some View {
         Image(systemName: "apple.logo")
             .font(.system(size: 18, weight: .medium))
-            .foregroundStyle(Color(hex: "101828"))
+            .foregroundStyle(Color.theme.ink)
     }
 
     private var googleIcon: some View { GoogleIconCanvas() }
@@ -170,7 +170,7 @@ struct SignUpView: View {
     private var emailIcon: some View {
         Image(systemName: "envelope")
             .font(.system(size: 16, weight: .regular))
-            .foregroundStyle(Color(hex: "101828"))
+            .foregroundStyle(Color.theme.ink)
     }
 
     // MARK: - Background
@@ -208,19 +208,19 @@ struct SignUpView: View {
             HStack(spacing: 0) {
                 Text("By continuing, you agree to the ")
                     .font(.custom("Quicksand-Light", size: 12))
-                    .foregroundStyle(Color(red: 0.42, green: 0.45, blue: 0.51))
+                    .foregroundStyle(Color.theme.mutedText)
                 Text("Terms of service")
                     .font(.custom("Quicksand-Regular", size: 12))
-                    .foregroundStyle(Color(red: 0.60, green: 0.63, blue: 0.69))
+                    .foregroundStyle(Color.theme.faintText)
                     .underline()
             }
             HStack(spacing: 0) {
                 Text("and ")
                     .font(.custom("Quicksand-Light", size: 12))
-                    .foregroundStyle(Color(red: 0.42, green: 0.45, blue: 0.51))
+                    .foregroundStyle(Color.theme.mutedText)
                 Text("Privacy policy")
                     .font(.custom("Quicksand-Regular", size: 12))
-                    .foregroundStyle(Color(red: 0.60, green: 0.63, blue: 0.69))
+                    .foregroundStyle(Color.theme.faintText)
                     .underline()
             }
         }
@@ -244,6 +244,8 @@ struct EmailFormView: View {
     @State private var isLoading = false
     @State private var error = ""
     @State private var showForgotPassword = false
+    /// The field being edited; the form scrolls it above the keyboard.
+    @FocusState private var focusedField: SignUpField?
 
     init(isLoginMode: Bool = false, onComplete: @escaping () -> Void) {
         self._isLoginMode = State(initialValue: isLoginMode)
@@ -262,8 +264,9 @@ struct EmailFormView: View {
 
     var body: some View {
         ZStack(alignment: .top) {
-            Color(red: 0.97, green: 0.96, blue: 0.95).ignoresSafeArea()
+            Color.theme.background.ignoresSafeArea()
 
+            ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     // Header: title + subtitle
@@ -271,13 +274,13 @@ struct EmailFormView: View {
                         Text(isLoginMode ? "Welcome back" : "Welcome to AutoMate!")
                             .font(.custom("Quicksand-Bold", size: 24))
                             .tracking(0.07)
-                            .foregroundStyle(Color(red: 0.06, green: 0.09, blue: 0.16))
+                            .foregroundStyle(Color.theme.ink)
 
                         Text(isLoginMode
                             ? "Log in to access your garage and vehicle maintenance history."
                             : "Create an account to access managing your service history, maintenance schedules, and more.")
                             .font(.custom("Quicksand-Regular", size: 14))
-                            .foregroundStyle(Color(red: 0.29, green: 0.33, blue: 0.40))
+                            .foregroundStyle(Color.theme.mutedText)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     .padding(.bottom, 24)
@@ -285,17 +288,17 @@ struct EmailFormView: View {
                     // Form fields
                     VStack(alignment: .leading, spacing: 16) {
                         if !isLoginMode {
-                            labeledField(label: "First name*", text: $firstName)
-                            labeledField(label: "Last name*", text: $lastName)
+                            labeledField(label: "First name*", text: $firstName, field: .firstName)
+                            labeledField(label: "Last name*", text: $lastName, field: .lastName)
                         }
-                        labeledField(label: "Email address*", text: $email, keyboard: .emailAddress)
+                        labeledField(label: "Email address*", text: $email, keyboard: .emailAddress, field: .email)
                         labeledPasswordField
 
                         if isLoginMode {
                             Button { showForgotPassword = true } label: {
                                 Text("Forgot password?")
                                     .font(.custom("Quicksand-Medium", size: 13))
-                                    .foregroundStyle(Color(red: 0.08, green: 0.36, blue: 0.99))
+                                    .foregroundStyle(Color.theme.brand)
                             }
                             .buttonStyle(.plain)
                         }
@@ -328,7 +331,7 @@ struct EmailFormView: View {
                         .frame(maxWidth: .infinity)
                         .frame(height: 56)
                         .foregroundStyle(.white)
-                        .background(isFormValid ? Color(red: 0.08, green: 0.36, blue: 0.99) : Color(red: 0.82, green: 0.84, blue: 0.86))
+                        .background(isFormValid ? Color.theme.brand : Color.theme.borderStrong)
                         .clipShape(Capsule())
                     }
                     .buttonStyle(OnboardingScaleStylePublic())
@@ -337,11 +340,11 @@ struct EmailFormView: View {
 
                     // OR divider
                     HStack(spacing: 16) {
-                        Rectangle().fill(Color(red: 0.90, green: 0.91, blue: 0.92)).frame(height: 1)
+                        Rectangle().fill(Color.theme.border).frame(height: 1)
                         Text("or")
                             .font(.custom("Quicksand-Regular", size: 14))
-                            .foregroundStyle(Color(red: 0.42, green: 0.45, blue: 0.51))
-                        Rectangle().fill(Color(red: 0.90, green: 0.91, blue: 0.92)).frame(height: 1)
+                            .foregroundStyle(Color.theme.mutedText)
+                        Rectangle().fill(Color.theme.border).frame(height: 1)
                     }
                     .padding(.vertical, 16)
 
@@ -368,7 +371,7 @@ struct EmailFormView: View {
 
                         // Facebook — UI placeholder
                         Circle()
-                            .fill(Color(red: 0.08, green: 0.36, blue: 0.99))
+                            .fill(Color.theme.brand)
                             .frame(width: 48, height: 48)
                             .overlay(
                                 Text("f")
@@ -390,7 +393,7 @@ struct EmailFormView: View {
                                 .frame(width: 48, height: 48)
                                 .background(.white)
                                 .clipShape(Circle())
-                                .overlay(Circle().strokeBorder(Color(red: 0.82, green: 0.84, blue: 0.86), lineWidth: 0.37))
+                                .overlay(Circle().strokeBorder(Color.theme.borderStrong, lineWidth: 0.37))
                         }
                         .buttonStyle(OnboardingScaleStylePublic())
 
@@ -403,6 +406,17 @@ struct EmailFormView: View {
                 .background(.white)
             }
             .background(.white)
+            .scrollDismissesKeyboard(.interactively)
+            // Bring the field being edited fully above the keyboard once it has opened.
+            .onChange(of: focusedField) { _, field in
+                guard let field else { return }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                    withAnimation(.easeOut(duration: 0.25)) {
+                        proxy.scrollTo(field, anchor: .center)
+                    }
+                }
+            }
+            }
         }
         .navigationBarBackButtonHidden(true)
         .toolbarBackground(.hidden, for: .navigationBar)
@@ -411,7 +425,7 @@ struct EmailFormView: View {
                 Button(action: { dismiss() }) {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 16, weight: .medium))
-                        .foregroundStyle(Color(red: 0.04, green: 0.04, blue: 0.04))
+                        .foregroundStyle(Color.theme.ink)
                 }
             }
             ToolbarItem(placement: .topBarTrailing) {
@@ -423,7 +437,7 @@ struct EmailFormView: View {
                 } label: {
                     Text(isLoginMode ? "Don't have an account? Sign up" : "Already have an account? Log in")
                         .font(.custom("Quicksand-Medium", size: 13))
-                        .foregroundStyle(Color(red: 0.04, green: 0.04, blue: 0.04))
+                        .foregroundStyle(Color.theme.ink)
                 }
                 .buttonStyle(.plain)
             }
@@ -440,27 +454,31 @@ struct EmailFormView: View {
 
     // MARK: - Labeled Field
 
-    private func labeledField(label: String, text: Binding<String>, keyboard: UIKeyboardType = .default) -> some View {
+    private func labeledField(label: String, text: Binding<String>, keyboard: UIKeyboardType = .default, field: SignUpField) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(label)
                 .font(.custom("Quicksand-Medium", size: 12))
-                .foregroundStyle(Color(red: 0.29, green: 0.33, blue: 0.40))
+                .foregroundStyle(Color.theme.mutedText)
 
             TextField("", text: text)
                 .font(.custom("Quicksand-Regular", size: 14))
-                .foregroundStyle(Color(red: 0.06, green: 0.09, blue: 0.16))
+                .foregroundStyle(Color.theme.ink)
                 .keyboardType(keyboard)
                 .textInputAutocapitalization(keyboard == .emailAddress ? .never : .words)
                 .autocorrectionDisabled()
+                .focused($focusedField, equals: field)
+                .submitLabel(.next)
+                .onSubmit { focusedField = field.next }
                 .padding(.horizontal, 14)
                 .frame(height: 50)
                 .background(.white)
                 .cornerRadius(10)
                 .overlay(
                     RoundedRectangle(cornerRadius: 10)
-                        .strokeBorder(Color(red: 0.82, green: 0.84, blue: 0.86), lineWidth: 0.75)
+                        .strokeBorder(Color.theme.borderStrong, lineWidth: 0.75)
                 )
         }
+        .id(field)
     }
 
     // MARK: - Labeled Password Field
@@ -469,7 +487,7 @@ struct EmailFormView: View {
         VStack(alignment: .leading, spacing: 4) {
             Text("Password (8+ characters)*")
                 .font(.custom("Quicksand-Medium", size: 12))
-                .foregroundStyle(Color(red: 0.29, green: 0.33, blue: 0.40))
+                .foregroundStyle(Color.theme.mutedText)
 
             HStack {
                 Group {
@@ -480,14 +498,20 @@ struct EmailFormView: View {
                     }
                 }
                 .font(.custom("Quicksand-Regular", size: 14))
-                .foregroundStyle(Color(red: 0.06, green: 0.09, blue: 0.16))
+                .foregroundStyle(Color.theme.ink)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
+                .focused($focusedField, equals: .password)
+                .submitLabel(isLoginMode ? .go : .done)
+                .onSubmit {
+                    focusedField = nil
+                    if isFormValid { submit() }
+                }
 
                 Button { showPassword.toggle() } label: {
                     Image(systemName: showPassword ? "eye.slash" : "eye")
                         .font(.system(size: 16))
-                        .foregroundStyle(Color(red: 0.29, green: 0.33, blue: 0.40))
+                        .foregroundStyle(Color.theme.mutedText)
                 }
             }
             .padding(.horizontal, 14)
@@ -496,9 +520,10 @@ struct EmailFormView: View {
             .cornerRadius(10)
             .overlay(
                 RoundedRectangle(cornerRadius: 10)
-                    .strokeBorder(Color(red: 0.82, green: 0.84, blue: 0.86), lineWidth: 0.75)
+                    .strokeBorder(Color.theme.borderStrong, lineWidth: 0.75)
             )
         }
+        .id(SignUpField.password)
     }
 
     // MARK: - Legal Text
@@ -506,19 +531,19 @@ struct EmailFormView: View {
     private var legalText: some View {
         (Text("By continuing, you agree to AutoMates ")
             .font(.custom("Quicksand-Regular", size: 12))
-            .foregroundColor(Color(red: 0.29, green: 0.33, blue: 0.40))
+            .foregroundColor(Color.theme.mutedText)
         + Text("Terms & Conditions")
             .font(.custom("Quicksand-Medium", size: 12))
-            .foregroundColor(Color(red: 0.08, green: 0.36, blue: 0.99))
+            .foregroundColor(Color.theme.brand)
         + Text(" and ")
             .font(.custom("Quicksand-Regular", size: 12))
-            .foregroundColor(Color(red: 0.29, green: 0.33, blue: 0.40))
+            .foregroundColor(Color.theme.mutedText)
         + Text("Privacy Policy")
             .font(.custom("Quicksand-Medium", size: 12))
-            .foregroundColor(Color(red: 0.08, green: 0.36, blue: 0.99))
+            .foregroundColor(Color.theme.brand)
         + Text(".")
             .font(.custom("Quicksand-Regular", size: 12))
-            .foregroundColor(Color(red: 0.29, green: 0.33, blue: 0.40))
+            .foregroundColor(Color.theme.mutedText)
         )
         .fixedSize(horizontal: false, vertical: true)
     }
@@ -566,6 +591,20 @@ struct EmailFormView: View {
 
 // MARK: - ForgotPasswordView
 
+private enum SignUpField: Hashable {
+    case firstName, lastName, email, password
+
+    /// Where the keyboard's return key goes from this field.
+    var next: SignUpField? {
+        switch self {
+        case .firstName: return .lastName
+        case .lastName: return .email
+        case .email: return .password
+        case .password: return nil
+        }
+    }
+}
+
 struct ForgotPasswordView: View {
     @Environment(AuthState.self) private var authState
     @Environment(\.dismiss) private var dismiss
@@ -585,11 +624,11 @@ struct ForgotPasswordView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Forgot password?")
                     .font(.custom("Quicksand-Bold", size: 24))
-                    .foregroundStyle(Color(red: 0.06, green: 0.09, blue: 0.16))
+                    .foregroundStyle(Color.theme.ink)
 
                 Text("No worries, we'll send you reset instructions.")
                     .font(.custom("Quicksand-Regular", size: 14))
-                    .foregroundStyle(Color(red: 0.29, green: 0.33, blue: 0.40))
+                    .foregroundStyle(Color.theme.mutedText)
             }
             .padding(.bottom, 24)
 
@@ -597,11 +636,11 @@ struct ForgotPasswordView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Email address*")
                     .font(.custom("Quicksand-Medium", size: 12))
-                    .foregroundStyle(Color(red: 0.29, green: 0.33, blue: 0.40))
+                    .foregroundStyle(Color.theme.mutedText)
 
                 TextField("Enter your email", text: $email)
                     .font(.custom("Quicksand-Regular", size: 16))
-                    .foregroundStyle(Color(red: 0.04, green: 0.04, blue: 0.04))
+                    .foregroundStyle(Color.theme.ink)
                     .keyboardType(.emailAddress)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
@@ -611,7 +650,7 @@ struct ForgotPasswordView: View {
                     .cornerRadius(10)
                     .overlay(
                         RoundedRectangle(cornerRadius: 10)
-                            .strokeBorder(Color(red: 0.82, green: 0.84, blue: 0.86), lineWidth: 0.75)
+                            .strokeBorder(Color.theme.borderStrong, lineWidth: 0.75)
                     )
             }
             .padding(.bottom, 16)
@@ -638,7 +677,7 @@ struct ForgotPasswordView: View {
                 .frame(maxWidth: .infinity)
                 .frame(height: 56)
                 .foregroundStyle(.white)
-                .background(isEmailFilled ? Color(red: 0.08, green: 0.36, blue: 0.99) : Color(red: 0.82, green: 0.84, blue: 0.86))
+                .background(isEmailFilled ? Color.theme.brand : Color.theme.borderStrong)
                 .clipShape(Capsule())
             }
             .buttonStyle(OnboardingScaleStylePublic())
@@ -654,7 +693,7 @@ struct ForgotPasswordView: View {
                     Text("Back to login")
                         .font(.custom("Quicksand-Medium", size: 14))
                 }
-                .foregroundStyle(Color(red: 0.29, green: 0.33, blue: 0.40))
+                .foregroundStyle(Color.theme.mutedText)
             }
             .buttonStyle(.plain)
             .frame(maxWidth: .infinity, alignment: .center)
@@ -671,7 +710,7 @@ struct ForgotPasswordView: View {
                 Button(action: { dismiss() }) {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 16, weight: .medium))
-                        .foregroundStyle(Color(red: 0.04, green: 0.04, blue: 0.04))
+                        .foregroundStyle(Color.theme.ink)
                 }
             }
         }
@@ -712,29 +751,29 @@ struct CheckYourEmailView: View {
             // Light green checkmark circle
             ZStack {
                 Circle()
-                    .fill(Color(red: 0.86, green: 0.99, blue: 0.91))
+                    .fill(Color.theme.success.opacity(0.15))
                     .frame(width: 64, height: 64)
                 Image(systemName: "checkmark")
                     .font(.system(size: 22, weight: .semibold))
-                    .foregroundStyle(Color(red: 0.06, green: 0.09, blue: 0.16))
+                    .foregroundStyle(Color.theme.ink)
             }
             .padding(.bottom, 24)
 
             Text("Check your email")
                 .font(.custom("Quicksand-Bold", size: 24))
-                .foregroundStyle(Color(red: 0.06, green: 0.09, blue: 0.16))
+                .foregroundStyle(Color.theme.ink)
                 .padding(.bottom, 12)
 
             Text("We've sent a password reset link to \(email)")
                 .font(.custom("Quicksand-Regular", size: 14))
-                .foregroundStyle(Color(red: 0.29, green: 0.33, blue: 0.40))
+                .foregroundStyle(Color.theme.mutedText)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 24)
                 .padding(.bottom, 32)
 
             Text("Didn't receive the email? Check your spam folder or try again.")
                 .font(.custom("Quicksand-Regular", size: 12))
-                .foregroundStyle(Color(red: 0.42, green: 0.45, blue: 0.51))
+                .foregroundStyle(Color.theme.mutedText)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 24)
                 .padding(.bottom, 32)
@@ -747,7 +786,7 @@ struct CheckYourEmailView: View {
                     .font(.custom("Quicksand-SemiBold", size: 16))
                     .frame(width: 320, height: 56)
                     .foregroundStyle(.white)
-                    .background(Color(red: 0.08, green: 0.36, blue: 0.99))
+                    .background(Color.theme.brand)
                     .clipShape(Capsule())
             }
             .buttonStyle(OnboardingScaleStylePublic())
@@ -765,8 +804,8 @@ struct CheckYourEmailView: View {
 var onboardingGradient: LinearGradient {
     LinearGradient(
         stops: [
-            Gradient.Stop(color: Color(red: 0.98, green: 0.97, blue: 0.96), location: 0.00),
-            Gradient.Stop(color: Color(red: 0.94, green: 0.92, blue: 0.89), location: 1.00),
+            Gradient.Stop(color: Color.theme.background, location: 0.00),
+            Gradient.Stop(color: Color.theme.surfaceAlt, location: 1.00),
         ],
         startPoint: UnitPoint(x: 0.5, y: 0),
         endPoint: UnitPoint(x: 0.5, y: 1)

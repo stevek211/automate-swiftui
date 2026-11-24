@@ -37,7 +37,7 @@ extension DemoData {
         ),
         // Safety Lights
         DiagnosticLight(
-            id: UUID(), name: "Brake Warning", iconName: "brake.signal",
+            id: UUID(), name: "Brake Warning", iconName: "exclamationmark.brakesignal",
             severity: .high, category: .safety,
             description: "Brake system issue detected. Could indicate low fluid or worn pads.",
             action: "Drive slowly to nearest service station. Avoid highway speeds.",
@@ -53,7 +53,7 @@ extension DemoData {
             causes: ["ABS sensor dirty/faulty", "ABS module issue", "Wiring problem", "Low brake fluid"]
         ),
         DiagnosticLight(
-            id: UUID(), name: "Airbag / SRS", iconName: "airbag",
+            id: UUID(), name: "Airbag / SRS", iconName: "figure.seated.side.airbag.on",
             severity: .high, category: .safety,
             description: "Airbag system malfunction. Airbags may not deploy in a crash.",
             action: "Schedule service as soon as possible.",
@@ -61,7 +61,7 @@ extension DemoData {
             causes: ["Seat belt sensor", "Clock spring failure", "Airbag module issue", "Wiring fault"]
         ),
         DiagnosticLight(
-            id: UUID(), name: "Tire Pressure (TPMS)", iconName: "tire.fill",
+            id: UUID(), name: "Tire Pressure (TPMS)", iconName: "exclamationmark.tirepressure",
             severity: .low, category: .safety,
             description: "One or more tires have low pressure.",
             action: "Check and inflate tires to recommended PSI.",
@@ -69,7 +69,7 @@ extension DemoData {
             causes: ["Temperature change", "Slow puncture", "Valve stem leak"]
         ),
         DiagnosticLight(
-            id: UUID(), name: "Seat Belt", iconName: "seatbelt.fill",
+            id: UUID(), name: "Seat Belt", iconName: "figure.seated.seatbelt",
             severity: .low, category: .safety,
             description: "Seat belt not fastened.",
             action: "Fasten seat belt.",

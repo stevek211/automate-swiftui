@@ -5,8 +5,8 @@ import SwiftUI
 // button, underlined fields with tracked caps labels, and a pinned Save bar.
 
 enum FormSheetStyle {
-    static let labelColor = Color(red: 0.42, green: 0.45, blue: 0.51)
-    static let underline = Color(red: 0.82, green: 0.84, blue: 0.86)
+    static var labelColor: Color { Color.theme.mutedText }
+    static var underline: Color { Color.theme.borderStrong }
 }
 
 /// Header, scrolling form body and Save bar for a form sheet.

@@ -28,6 +28,7 @@ struct ServicePlanView: View {
     @State private var showLogSheet = false
     @State private var mileageDraft: String = ""
     @FocusState private var mileageFocused: Bool
+    @State private var mileageSheetHeight: CGFloat = 220
     @State private var mileageError = false
     @State private var completedService: CompletedServiceCardState?
     @State private var showCompletedItems = true
@@ -161,7 +162,7 @@ struct ServicePlanView: View {
                     .frame(height: 13.5)
 
                 Button {
-                    mileageDraft = "\(currentMileage)"
+                    mileageDraft = currentMileage.formatted()
                     mileageError = false
                     showMileageEdit = true
                 } label: {
@@ -171,10 +172,10 @@ struct ServicePlanView: View {
                             .foregroundStyle(ServicePlanPalette.textPrimary)
                             .monospacedDigit()
                         Text("mi")
-                            .font(.quicksand(.medium, size: 10))
+                            .font(.quicksand(.medium, size: 13))
                             .foregroundStyle(ServicePlanPalette.textMuted)
                         Image(systemName: "pencil")
-                            .font(.system(size: 10))
+                            .font(.system(size: 14, weight: .medium))
                             .foregroundStyle(ServicePlanPalette.teal)
                     }
                     .frame(height: 22.5)
@@ -211,7 +212,13 @@ struct ServicePlanView: View {
                     .keyboardType(.numberPad)
                     .textFieldStyle(.plain)
                     .focused($mileageFocused)
-                    .onChange(of: mileageDraft) { _, _ in mileageError = false }
+                    .onChange(of: mileageDraft) { _, newValue in
+                        mileageError = false
+                        // Show thousands separators as the user types (e.g. 32,312).
+                        let digits = String(newValue.filter(\.isNumber).prefix(7))
+                        let formatted = Int(digits).map { $0.formatted() } ?? ""
+                        if formatted != newValue { mileageDraft = formatted }
+                    }
                 Text("mi")
                     .font(.quicksand(.regular, size: 18))
                     .foregroundStyle(ServicePlanPalette.textMuted)
@@ -245,11 +252,13 @@ struct ServicePlanView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 12))
             }
             .buttonStyle(.plain)
-
-            Spacer()
         }
-        .padding(24)
-        .presentationDetents([.height(280)])
+        .padding(.horizontal, 24)
+        .padding(.top, 28)
+        .padding(.bottom, 16)
+        // Size the sheet to its content so there's no empty space under Save.
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { mileageSheetHeight = $0 }
+        .presentationDetents([.height(mileageSheetHeight)])
         .onAppear { mileageFocused = true }
     }
 
@@ -266,7 +275,7 @@ struct ServicePlanView: View {
 
     private var onRecordRow: some View {
         Button {
-            withAnimation(.easeInOut(duration: 0.2)) { isOnRecordExpanded.toggle() }
+            withAnimation(.spring(duration: 0.4, bounce: 0)) { isOnRecordExpanded.toggle() }
         } label: {
             HStack(spacing: 8) {
                 Text("PREVIOUSLY RECORDED SERVICES")
@@ -274,14 +283,6 @@ struct ServicePlanView: View {
                     .tracking(1.80)
                     .foregroundStyle(ServicePlanPalette.textMuted)
 
-                // Dot indicators — one per logged service
-                HStack(spacing: 4) {
-                    ForEach(0..<min(displayedServiceLogCount, 12), id: \.self) { _ in
-                        Circle()
-                            .fill(ServicePlanPalette.dotColor)
-                            .frame(width: 6, height: 6)
-                    }
-                }
 
                 Spacer()
 
@@ -289,7 +290,8 @@ struct ServicePlanView: View {
                     .font(.quicksand(.medium, size: 10))
                     .foregroundStyle(ServicePlanPalette.textMuted)
 
-                Image(systemName: isOnRecordExpanded ? "chevron.up" : "chevron.down")
+                Image(systemName: "chevron.down")
+                    .rotationEffect(.degrees(isOnRecordExpanded ? 180 : 0))
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(ServicePlanPalette.textMuted)
             }
@@ -342,7 +344,12 @@ struct ServicePlanView: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 12)
                 .padding(.bottom, 16)
-                .transition(.opacity.combined(with: .move(edge: .top)))
+                // Fade in after the space opens, fade out quickly before it closes, so the
+                // list never slides over the card below it.
+                .transition(.asymmetric(
+                    insertion: .opacity.animation(.easeOut(duration: 0.25).delay(0.12)),
+                    removal: .opacity.animation(.easeIn(duration: 0.12))
+                ))
             }
 
             // Next milestone or newly logged completed service

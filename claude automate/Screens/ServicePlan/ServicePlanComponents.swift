@@ -3,38 +3,38 @@ import SwiftUI
 // MARK: - Design Tokens
 
 enum ServicePlanPalette {
-    static let bg          = Color(red: 0.98, green: 0.97, blue: 0.96)
-    static let cardBg      = Color(red: 0.99, green: 0.99, blue: 0.99)
+    static var bg: Color { Color.theme.background }
+    static var cardBg: Color { Color.theme.card }
 
-    static let teal        = Color(red: 0, green: 0.47, blue: 0.44)
-    static let tealDeep    = Color(hex: "295350")
-    static let tealBright  = Color(hex: "007970")
-    static let tealTintChip = Color(hex: "E8EFEE")
-    static let tealTintBtn  = Color(hex: "E6EFED")
+    static var teal: Color { Color.theme.brand }
+    static var tealDeep: Color { Color.theme.brandDeep }
+    static var tealBright: Color { Color.theme.brand }
+    static var tealTintChip: Color { Color.theme.brand.opacity(0.10) }
+    static var tealTintBtn: Color { Color.theme.brand.opacity(0.11) }
 
-    static let chipSage    = Color(red: 0.80, green: 0.84, blue: 0.68)
+    static var chipSage: Color { Color.theme.success.opacity(0.45) }
 
-    static let greenTint   = Color(hex: "DCFCE7")
-    static let greenText   = Color(hex: "008236")
-    static let replaceTint = Color(hex: "CBFBF1")
+    static var greenTint: Color { Color.theme.success.opacity(0.15) }
+    static var greenText: Color { Color.theme.success }
+    static var replaceTint: Color { Color.theme.brand.opacity(0.18) }
 
-    static let neutralChipBg  = Color(hex: "F3F4F6")
-    static let neutralChipTxt = Color(hex: "4A5565")
+    static var neutralChipBg: Color { Color.theme.surfaceAlt }
+    static var neutralChipTxt: Color { Color.theme.mutedText }
 
-    static let borderLight    = Color(red: 0.90, green: 0.91, blue: 0.92)
-    static let borderDefault  = Color(hex: "E5E7EB")
-    static let borderSoft     = Color(hex: "C8C8C8")
-    static let borderCheckbox = Color(hex: "D1D5DC")
-    static let dotColor       = Color(red: 0.60, green: 0.63, blue: 0.69)
+    static var borderLight: Color { Color.theme.border }
+    static var borderDefault: Color { Color.theme.border }
+    static var borderSoft: Color { Color.theme.borderStrong }
+    static var borderCheckbox: Color { Color.theme.borderStrong }
+    static var dotColor: Color { Color.theme.faintText }
 
-    static let textPrimary   = Color(red: 0.06, green: 0.09, blue: 0.16)
-    static let textSecondary = Color(red: 0.21, green: 0.25, blue: 0.33)
-    static let textMuted     = Color(red: 0.29, green: 0.33, blue: 0.40)
-    static let textBody      = Color(hex: "4A5565")
-    static let textFaint     = Color(red: 0.60, green: 0.63, blue: 0.69)
-    static let textItem      = Color(hex: "1E2939")
-    static let actionNeutral = Color(hex: "6A7282")
-    static let itemCircle    = Color(hex: "99A1AF")
+    static var textPrimary: Color { Color.theme.ink }
+    static var textSecondary: Color { Color.theme.ink.opacity(0.85) }
+    static var textMuted: Color { Color.theme.mutedText }
+    static var textBody: Color { Color.theme.mutedText }
+    static var textFaint: Color { Color.theme.faintText }
+    static var textItem: Color { Color.theme.ink }
+    static var actionNeutral: Color { Color.theme.mutedText }
+    static var itemCircle: Color { Color.theme.faintText }
 }
 
 // MARK: - Circular Miles Gauge

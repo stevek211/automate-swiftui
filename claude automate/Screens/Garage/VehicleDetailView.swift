@@ -3,14 +3,14 @@ import SwiftUI
 // MARK: - Palette (Figma "Vehicle detail" frame, 559:5455)
 
 extension Color {
-    static let vdPage = Color(hex: "F9F8F5")          // page background
-    static let vdHeroTop = Color(hex: "F0EEEA").opacity(0.6)
-    static let vdInk = Color(hex: "1F242E")           // headings, values
-    static let vdMuted = Color(hex: "5F6676")         // labels, secondary text (darkened from Figma #737B8C for WCAG AA 4.5:1)
-    static let vdBorder = Color(hex: "E5E2DC")        // card borders, hairlines
-    static let vdSurface = Color(hex: "FDFDFC")       // cards, buttons
-    static let vdTrack = Color(hex: "F0EEEA")         // segmented track, chips
-    static let vdAccent = Color(hex: "227770")        // selected tab, links
+    static var vdPage: Color { theme.background }          // page background
+    static var vdHeroTop: Color { theme.surfaceAlt.opacity(0.6) }
+    static var vdInk: Color { theme.ink }                  // headings, values
+    static var vdMuted: Color { theme.mutedText }          // labels, secondary text
+    static var vdBorder: Color { theme.border }            // card borders, hairlines
+    static var vdSurface: Color { theme.card }             // cards, buttons
+    static var vdTrack: Color { theme.surfaceAlt }         // segmented track, chips
+    static var vdAccent: Color { theme.brand }             // selected tab, links
 }
 
 struct VehicleDetailView: View {

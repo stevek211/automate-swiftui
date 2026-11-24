@@ -182,7 +182,7 @@ struct AddVehicleFlowView: View {
 
             if let error = lookupManager.vinError, !vinInput.isEmpty {
                 Text(error)
-                    .font(.system(size: 11))
+                    .font(.quicksandScaled(.regular, size: 11))
                     .foregroundStyle(Color.agMutedForeground)
             }
         }
@@ -580,7 +580,7 @@ struct AddVehicleFlowView: View {
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
                 .frame(height: 48)
-                .background(Color(red: 0.83, green: 0.64, blue: 0.45))
+                .background(Color.theme.secondary)
                 .clipShape(RoundedRectangle(cornerRadius: 14))
         }
         .buttonStyle(ScaleButtonStyle())
@@ -592,7 +592,7 @@ struct AddVehicleFlowView: View {
         .background(Color.white.opacity(0.95))
         .overlay(
             Rectangle()
-                .strokeBorder(Color(red: 0.95, green: 0.96, blue: 0.96), lineWidth: 0.5)
+                .strokeBorder(Color.theme.surfaceAlt, lineWidth: 0.5)
         )
     }
 

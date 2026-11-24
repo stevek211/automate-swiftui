@@ -3,13 +3,13 @@ import SwiftUI
 // MARK: - Home palette (Figma "Automate" › Main, node 437:335)
 
 private extension Color {
-    static let homeInk = Color(hex: "1E1A4D")             // headings, values
-    static let homeInkSoft = Color(hex: "1E1A4D").opacity(0.8)
-    static let homeSubtitle = Color(hex: "5E5C66")
-    static let homeLabel = Color(hex: "737373")
-    static let homeHairline = Color(hex: "1E1A4D").opacity(0.08)
-    static let homeStatsFill = Color(hex: "FCFCFC")
-    static let homeStatsBorder = Color(hex: "F0EFF4")
+    static var homeInk: Color { theme.heading }              // headings, values
+    static var homeInkSoft: Color { theme.heading.opacity(0.8) }
+    static var homeSubtitle: Color { theme.mutedText }
+    static var homeLabel: Color { theme.mutedText }
+    static var homeHairline: Color { theme.heading.opacity(0.08) }
+    static var homeStatsFill: Color { theme.card }
+    static var homeStatsBorder: Color { theme.hairline }
 }
 
 struct HomeView: View {

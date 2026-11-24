@@ -44,6 +44,8 @@ struct LogMilestoneSheet: View {
     @State private var showAddItem = false
     @State private var newItemDraft = ""
     @State private var pendingRemoval: PendingServiceItemRemoval?
+    /// The field being edited. While set, the Save bar hides and the field is scrolled above the keyboard.
+    @FocusState private var focusedField: LogSheetField?
 
     init(
         milestone: ServicePlanMilestone,
@@ -81,13 +83,27 @@ struct LogMilestoneSheet: View {
         VStack(alignment: .leading, spacing: 0) {
             dragHandle
             header
-            ScrollView {
-                formContent
-                    .padding(.horizontal, 20)
-                    .padding(.top, 16)
-                    .padding(.bottom, 16)
+            ScrollViewReader { proxy in
+                ScrollView {
+                    formContent
+                        .padding(.horizontal, 20)
+                        .padding(.top, 16)
+                        .padding(.bottom, 16)
+                }
+                .scrollDismissesKeyboard(.interactively)
+                .onChange(of: focusedField) { _, field in
+                    guard let field else { return }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                        withAnimation(.easeOut(duration: 0.25)) {
+                            proxy.scrollTo(field, anchor: .center)
+                        }
+                    }
+                }
             }
-            saveArea
+            // Hidden while typing so the keyboard doesn't push it over the field.
+            if focusedField == nil {
+                saveArea
+            }
         }
         .background(.white)
     }
@@ -97,7 +113,7 @@ struct LogMilestoneSheet: View {
     private var dragHandle: some View {
         HStack {
             Capsule()
-                .fill(Color(red: 0.82, green: 0.84, blue: 0.86))
+                .fill(Color.theme.borderStrong)
                 .frame(width: 40, height: 4)
         }
         .frame(maxWidth: .infinity)
@@ -113,7 +129,7 @@ struct LogMilestoneSheet: View {
                 Text("LOG SERVICE")
                     .font(.quicksand(.medium, size: 12)) //log service font size
                     .tracking(2.00)
-                    .foregroundStyle(Color(red: 0.42, green: 0.45, blue: 0.51))
+                    .foregroundStyle(Color.theme.mutedText)
                 Text("\(milestone.mileage.formatted()) mi service")
                     .font(.quicksand(.medium, size: 22))
                     .foregroundStyle(ServicePlanPalette.textPrimary)
@@ -169,10 +185,12 @@ struct LogMilestoneSheet: View {
                             .keyboardType(.numberPad)
                             .textFieldStyle(.plain)
                             .monospacedDigit()
+                            .focused($focusedField, equals: .mileage)
+                            .id(LogSheetField.mileage)
 
                         Text("mi")
                             .font(.quicksand(.regular, size: 15))
-                            .foregroundStyle(Color(red: 0.42, green: 0.45, blue: 0.51))
+                            .foregroundStyle(Color.theme.mutedText)
                     }
                 }
             }
@@ -182,6 +200,8 @@ struct LogMilestoneSheet: View {
                 TextField("e.g. Jiffy Lube", text: $shop)
                     .font(.quicksand(.regular, size: 17))
                     .foregroundStyle(ServicePlanPalette.textPrimary)
+                    .focused($focusedField, equals: .shop)
+                    .id(LogSheetField.shop)
             }
             .frame(maxWidth: .infinity)
 
@@ -192,6 +212,8 @@ struct LogMilestoneSheet: View {
                         .font(.quicksand(.regular, size: 17))
                         .foregroundStyle(ServicePlanPalette.textPrimary)
                     TextField("0.00", text: $costText)
+                        .focused($focusedField, equals: .cost)
+                        .id(LogSheetField.cost)
                         .onChange(of: costText) { _, newValue in
                             let filtered = sanitizedCostInput(newValue)
                             if filtered != newValue {
@@ -217,7 +239,7 @@ struct LogMilestoneSheet: View {
             Text("WHAT WAS DONE")
                 .font(.quicksand(.semibold, size: 13))
                 .tracking(1.76)
-                .foregroundStyle(Color(red: 0.42, green: 0.45, blue: 0.51))
+                .foregroundStyle(Color.theme.mutedText)
 
             if !visibleReplacements.isEmpty {
                 replacementsSection
@@ -371,6 +393,8 @@ struct LogMilestoneSheet: View {
         VStack(alignment: .leading, spacing: 0) {
             Button {
                 withAnimation(.easeInOut(duration: 0.15)) { showAddItem.toggle() }
+                // Opening the row puts the cursor straight in the name field.
+                focusedField = showAddItem ? .newItem : nil
             } label: {
                 HStack {
                     Text("Add another item")
@@ -391,14 +415,12 @@ struct LogMilestoneSheet: View {
                     TextField("Service item name", text: $newItemDraft)
                         .font(.quicksand(.regular, size: 14))
                         .foregroundStyle(ServicePlanPalette.textPrimary)
+                        .focused($focusedField, equals: .newItem)
+                        .submitLabel(.done)
+                        .onSubmit { addCustomItem() }
 
                     Button {
-                        let trimmed = newItemDraft.trimmingCharacters(in: .whitespaces)
-                        if !trimmed.isEmpty {
-                            customItems.append(trimmed)
-                            newItemDraft = ""
-                            showAddItem = false
-                        }
+                        addCustomItem()
                     } label: {
                         Text("Add")
                             .font(.quicksand(.semibold, size: 12))
@@ -411,6 +433,7 @@ struct LogMilestoneSheet: View {
                     .buttonStyle(.plain)
                 }
                 .padding(.bottom, 12)
+                .id(LogSheetField.newItem)
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
@@ -420,6 +443,15 @@ struct LogMilestoneSheet: View {
         .overlay(alignment: .bottom) {
             Rectangle().fill(ServicePlanPalette.borderLight).frame(height: 0.75)
         }
+    }
+
+    private func addCustomItem() {
+        let trimmed = newItemDraft.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+        customItems.append(trimmed)
+        newItemDraft = ""
+        showAddItem = false
+        focusedField = nil
     }
 
     // MARK: - Save Area
@@ -459,14 +491,14 @@ struct LogMilestoneSheet: View {
             Text(label)
                 .font(.quicksand(.medium, size: 10))
                 .tracking(1.80)
-                .foregroundStyle(Color(red: 0.42, green: 0.45, blue: 0.51))
+                .foregroundStyle(Color.theme.mutedText)
             content()
                 .frame(height: 28)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.bottom, 4)
                 .overlay(alignment: .bottom) {
                     Rectangle()
-                        .fill(Color(red: 0.82, green: 0.84, blue: 0.86))
+                        .fill(Color.theme.borderStrong)
                         .frame(height: 0.75)
                 }
         }
@@ -514,7 +546,7 @@ struct LogMilestoneSheet: View {
                         .overlay {
                             RoundedRectangle(cornerRadius: 14)
                                 .inset(by: 0.75)
-                                .stroke(Color(red: 0.82, green: 0.84, blue: 0.86), lineWidth: 0.75)
+                                .stroke(Color.theme.borderStrong, lineWidth: 0.75)
                         }
                 }
                 .buttonStyle(.plain)
@@ -527,7 +559,7 @@ struct LogMilestoneSheet: View {
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .frame(height: 42.99)
-                        .background(Color(red: 0.91, green: 0, blue: 0.04))
+                        .background(Color.theme.danger)
                         .clipShape(RoundedRectangle(cornerRadius: 14))
                 }
                 .buttonStyle(.plain)
@@ -651,4 +683,8 @@ struct LogMilestoneSheet: View {
     ).upcomingMilestones.first!
     return LogMilestoneSheet(milestone: milestone, vehicle: vehicle)
         .presentationDetents([.large])
+}
+
+private enum LogSheetField: Hashable {
+    case mileage, shop, cost, newItem
 }

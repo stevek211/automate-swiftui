@@ -17,9 +17,9 @@ struct SystemDetailView: View {
 
                     VStack(alignment: .leading, spacing: AGSpacing.xs) {
                         Text(system.name)
-                            .font(.poppinsTitle)
+                            .font(.quicksandScaled(.bold, size: 22))
                         Text(system.description)
-                            .font(.poppinsCallout)
+                            .font(.quicksandScaled(.regular, size: 14))
                             .foregroundStyle(Color.agMutedForeground)
                     }
                 }
@@ -27,16 +27,16 @@ struct SystemDetailView: View {
                 // Overview
                 VStack(alignment: .leading, spacing: AGSpacing.sm) {
                     Text("Overview")
-                        .font(.poppinsTitle3)
+                        .font(.quicksandScaled(.semibold, size: 18))
                     Text(system.overview)
-                        .font(.poppinsBody)
+                        .font(.quicksandScaled(.regular, size: 15))
                         .foregroundStyle(Color.agMutedForeground)
                 }
 
                 // Components
                 VStack(alignment: .leading, spacing: AGSpacing.md) {
                     Text("Key Components")
-                        .font(.poppinsTitle3)
+                        .font(.quicksandScaled(.semibold, size: 18))
 
                     ForEach(system.components, id: \.name) { component in
                         HStack(alignment: .top, spacing: AGSpacing.md) {
@@ -49,9 +49,9 @@ struct SystemDetailView: View {
 
                             VStack(alignment: .leading, spacing: AGSpacing.xs) {
                                 Text(component.name)
-                                    .font(.poppinsHeadline)
+                                    .font(.quicksandScaled(.semibold, size: 16))
                                 Text(component.description)
-                                    .font(.poppinsCallout)
+                                    .font(.quicksandScaled(.regular, size: 14))
                                     .foregroundStyle(Color.agMutedForeground)
                             }
                         }
@@ -61,19 +61,19 @@ struct SystemDetailView: View {
                 // How it works
                 VStack(alignment: .leading, spacing: AGSpacing.md) {
                     Text("How It Works")
-                        .font(.poppinsTitle3)
+                        .font(.quicksandScaled(.semibold, size: 18))
 
                     ForEach(Array(system.howItWorks.enumerated()), id: \.offset) { index, step in
                         HStack(alignment: .top, spacing: AGSpacing.md) {
                             Text("\(index + 1)")
-                                .font(.poppinsCaption)
+                                .font(.quicksandScaled(.medium, size: 12))
                                 .foregroundStyle(.white)
                                 .frame(width: 24, height: 24)
                                 .background(Color.agPrimary)
                                 .clipShape(Circle())
 
                             Text(step)
-                                .font(.poppinsBody)
+                                .font(.quicksandScaled(.regular, size: 15))
                                 .foregroundStyle(Color.agForeground)
                         }
                     }
@@ -82,25 +82,25 @@ struct SystemDetailView: View {
                 // Common Issues
                 VStack(alignment: .leading, spacing: AGSpacing.md) {
                     Text("Common Issues")
-                        .font(.poppinsTitle3)
+                        .font(.quicksandScaled(.semibold, size: 18))
 
                     ForEach(system.commonIssues) { issue in
                         VStack(alignment: .leading, spacing: AGSpacing.sm) {
                             HStack {
                                 Text(issue.name)
-                                    .font(.poppinsHeadline)
+                                    .font(.quicksandScaled(.semibold, size: 16))
                                 Spacer()
                                 Text(issue.estimatedCost)
-                                    .font(.poppinsCaption)
+                                    .font(.quicksandScaled(.medium, size: 12))
                                     .foregroundStyle(Color.agPrimary)
                             }
 
                             Text("Symptoms: \(issue.symptoms.joined(separator: ", "))")
-                                .font(.poppinsCaption)
+                                .font(.quicksandScaled(.medium, size: 12))
                                 .foregroundStyle(Color.agMutedForeground)
 
                             Text("Causes: \(issue.causes.joined(separator: ", "))")
-                                .font(.poppinsCaption)
+                                .font(.quicksandScaled(.medium, size: 12))
                                 .foregroundStyle(Color.agMutedForeground)
                         }
                         .cardStyle()
@@ -110,14 +110,14 @@ struct SystemDetailView: View {
                 // Service Schedule
                 VStack(alignment: .leading, spacing: AGSpacing.md) {
                     Text("Service Schedule")
-                        .font(.poppinsTitle3)
+                        .font(.quicksandScaled(.semibold, size: 18))
 
                     ForEach(system.serviceSchedule, id: \.self) { schedule in
                         HStack(spacing: AGSpacing.md) {
                             Image(systemName: "calendar.badge.clock")
                                 .foregroundStyle(Color.agPrimary)
                             Text(schedule)
-                                .font(.poppinsBody)
+                                .font(.quicksandScaled(.regular, size: 15))
                                 .foregroundStyle(Color.agForeground)
                         }
                     }
