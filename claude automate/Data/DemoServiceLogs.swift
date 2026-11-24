@@ -55,6 +55,36 @@ extension DemoData {
         ServiceLog(
             id: UUID(),
             vehicleId: vehicleHondaId,
+            name: "Cabin Air Filter",
+            date: date("2025-06-10"),
+            mileage: 38000,
+            cost: 45,
+            shop: "Honda Dealer",
+            category: .filters
+        ),
+        ServiceLog(
+            id: UUID(),
+            vehicleId: vehicleHondaId,
+            name: "Wiper Blades",
+            date: date("2025-06-10"),
+            mileage: 38000,
+            cost: 38,
+            shop: "Honda Dealer",
+            category: .general
+        ),
+        ServiceLog(
+            id: UUID(),
+            vehicleId: vehicleHondaId,
+            name: "Multi-Point Inspection",
+            date: date("2025-06-10"),
+            mileage: 38000,
+            cost: 0,
+            shop: "Honda Dealer",
+            category: .inspection
+        ),
+        ServiceLog(
+            id: UUID(),
+            vehicleId: vehicleHondaId,
             name: "Battery Replacement",
             date: date("2024-11-03"),
             mileage: 33500,

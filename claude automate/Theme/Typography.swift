@@ -9,6 +9,34 @@ extension Font {
         .custom(weight.fontName, size: size)
     }
 
+    /// Quicksand at `size` by default, scaling with the user's Dynamic Type
+    /// setting like the system text style closest to that size.
+    static func quicksandScaled(_ weight: QuicksandWeight, size: CGFloat) -> Font {
+        .custom(weight.fontName, size: size, relativeTo: TextStyle.closest(to: size))
+    }
+}
+
+private extension Font.TextStyle {
+    /// Nearest iOS text style by default point size, so custom sizes scale
+    /// on the same curve as system text.
+    static func closest(to size: CGFloat) -> Font.TextStyle {
+        switch size {
+        case ..<11.5: return .caption2      // 11
+        case ..<12.5: return .caption       // 12
+        case ..<14.5: return .footnote      // 13
+        case ..<15.5: return .subheadline   // 15
+        case ..<16.5: return .callout       // 16
+        case ..<18.5: return .body          // 17
+        case ..<21:   return .title3        // 20
+        case ..<25:   return .title2        // 22
+        case ..<31:   return .title         // 28
+        default:      return .largeTitle    // 34
+        }
+    }
+}
+
+extension Font {
+
     static let poppinsLargeTitle: Font = .custom("Poppins-Bold", size: 28)
     static let poppinsTitle: Font     = .custom("Poppins-Bold", size: 22)
     static let poppinsTitle2: Font    = .custom("Poppins-SemiBold", size: 20)
