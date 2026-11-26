@@ -657,7 +657,7 @@ struct PostVehicleServiceSetupFlow: View {
                         .font(.quicksand(.semibold, size: 16))
                         .foregroundStyle(Color.agForeground)
                         .multilineTextAlignment(.center)
-                    Text("This takes a few seconds")
+                    Text("Hang tight while we check!")
                         .font(.quicksand(.regular, size: 13))
                         .foregroundStyle(Color.agMutedForeground)
                 }

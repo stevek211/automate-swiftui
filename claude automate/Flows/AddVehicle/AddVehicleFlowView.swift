@@ -86,6 +86,7 @@ struct AddVehicleFlowView: View {
                 .padding(.bottom, 120)
             }
             bottomCTA
+                .hiddenWhileKeyboardShown()
         }
         .background(Color.agBackground)
         .interactiveDismissDisabled(!allowDismiss || addedVehicle != nil)

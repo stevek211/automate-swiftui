@@ -44,10 +44,38 @@ struct KeyboardDoneBar: ViewModifier {
     }
 }
 
+/// Hides a view while the keyboard is open. For bottom-pinned buttons
+/// (Save, Add Vehicle): otherwise iOS lifts them up with the keyboard, where
+/// they cover the field being typed in.
+struct HiddenWhileKeyboardShown: ViewModifier {
+    @State private var keyboardVisible = false
+
+    func body(content: Content) -> some View {
+        // The VStack stays in the tree when empty, so the observers below
+        // keep running while the content is hidden.
+        VStack(spacing: 0) {
+            if !keyboardVisible {
+                content
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
+            keyboardVisible = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+            keyboardVisible = false
+        }
+    }
+}
+
 extension View {
     /// Adds a "Done" bar above the keyboard while it's open. See `KeyboardDoneBar`.
     func keyboardDoneBar(onDone: (() -> Void)? = nil) -> some View {
         modifier(KeyboardDoneBar(onDone: onDone))
+    }
+
+    /// Hides this view while the keyboard is open. See `HiddenWhileKeyboardShown`.
+    func hiddenWhileKeyboardShown() -> some View {
+        modifier(HiddenWhileKeyboardShown())
     }
 }
 

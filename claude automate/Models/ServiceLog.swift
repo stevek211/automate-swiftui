@@ -35,6 +35,29 @@ enum ServiceCategory: String, Codable, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
+    /// The category a service-plan item belongs to ("oil", "Tires"), matched
+    /// case-insensitively; nil when the plan uses a name we don't have.
+    static func fromPlanCategory(_ raw: String) -> ServiceCategory? {
+        let lower = raw.lowercased()
+        return allCases.first { $0.rawValue.lowercased() == lower }
+    }
+
+    /// Best guess from a service's name, e.g. "Oil & Filter Change" → .oil.
+    static func inferred(from name: String) -> ServiceCategory {
+        let text = name.lowercased()
+        if text.contains("oil") { return .oil }
+        if text.contains("brake") { return .brakes }
+        if text.contains("tire") || text.contains("wheel") || text.contains("alignment") { return .tires }
+        if text.contains("battery") { return .battery }
+        if text.contains("transmission") || text.contains("cvt") { return .transmission }
+        if text.contains("filter") { return .filters }
+        if text.contains("coolant") || text.contains("ac service") { return .cooling }
+        if text.contains("spark") || text.contains("wiper") { return .electrical }
+        if text.contains("fluid") { return .fluids }
+        if text.contains("inspect") { return .inspection }
+        return .general
+    }
+
     var iconName: String {
         switch self {
         case .oil: return "drop.fill"

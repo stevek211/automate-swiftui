@@ -35,6 +35,14 @@ enum ServicePlanPalette {
     static var textItem: Color { Color.theme.ink }
     static var actionNeutral: Color { Color.theme.mutedText }
     static var itemCircle: Color { Color.theme.faintText }
+
+    /// Action tags in the Log Service sheet (Figma "Log Service Modal").
+    /// No palette token matches these, so they're fixed design colors.
+    static let replaceTag = Color(hex: "FF6C64")
+    static let inspectTag = Color(hex: "DFB200")
+    /// Perform / rotate / clean / adjust tags: the brand teal, so "do it"
+    /// items read differently from replacements and inspections.
+    static var serviceTag: Color { Color.theme.brand }
 }
 
 // MARK: - Circular Miles Gauge
@@ -258,17 +266,10 @@ struct CompactMilestoneRow: View {
                 withAnimation(.easeInOut(duration: 0.2)) { isExpanded.toggle() }
             } label: {
                 HStack(alignment: .bottom, spacing: 0) {
-                    // Mileage + months
-                    HStack(alignment: .firstTextBaseline, spacing: 6) {
-                        Text(milestone.mileage.formatted())
-                            .font(.quicksand(.semibold, size: 18))
-                            .foregroundStyle(ServicePlanPalette.textPrimary)
-                        if let months = milestone.months {
-                            Text("\(months) mo")
-                                .font(.quicksand(.medium, size: 11))
-                                .foregroundStyle(ServicePlanPalette.textMuted)
-                        }
-                    }
+                    // Mileage
+                    Text(milestone.mileage.formatted())
+                        .font(.quicksand(.semibold, size: 18))
+                        .foregroundStyle(ServicePlanPalette.textPrimary)
 
                     Spacer()
 
@@ -324,12 +325,6 @@ struct CompletedMilestoneRow: View {
                     Text(milestone.mileage.formatted())
                         .font(.quicksand(.semibold, size: 18))
                         .foregroundStyle(ServicePlanPalette.textPrimary)
-
-                    if let months = milestone.months {
-                        Text("\(months) mo")
-                            .font(.quicksand(.medium, size: 11))
-                            .foregroundStyle(ServicePlanPalette.textMuted)
-                    }
 
                     Spacer(minLength: 8)
 

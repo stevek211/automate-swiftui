@@ -78,7 +78,6 @@ struct ServicePlanItem: Identifiable, Hashable {
 struct ServicePlanMilestone: Identifiable, Hashable {
     let id = UUID()
     let mileage: Int
-    let months: Int?
     let items: [ServicePlanItem]
 
     var replacements: [ServicePlanItem] {

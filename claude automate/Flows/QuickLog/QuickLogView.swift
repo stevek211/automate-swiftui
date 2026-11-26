@@ -19,7 +19,8 @@ struct QuickLogView: View {
         return f.string(from: .now)
     }()
     @State private var mileageText = ""
-    @State private var costText = ""
+    /// Cost typed for each selected service, keyed by service name.
+    @State private var serviceCostTexts: [String: String] = [:]
     @State private var shop = ""
     @State private var receiptPhoto: PhotosPickerItem?
     @State private var receiptImageData: Data?
@@ -128,7 +129,7 @@ struct QuickLogView: View {
             .toolbar {
                 // Number pads have no return key, so give them a way to close the keyboard.
                 ToolbarItemGroup(placement: .keyboard) {
-                    if focusedField == .cost || focusedField == .mileage {
+                    if focusedField?.isNumberPad == true {
                         Spacer()
                         Button("Done") { focusedField = nil }
                             .font(.quicksandScaled(.semibold, size: 16))
@@ -365,22 +366,7 @@ struct QuickLogView: View {
                     .labelsHidden()
             }
 
-            detailField(label: "TOTAL COST") {
-                HStack {
-                    Text("$")
-                        .font(.quicksandScaled(.regular, size: 16))
-                        .foregroundStyle(Color.agMutedForeground)
-                    TextField("0.00", text: $costText)
-                        .font(.quicksandScaled(.medium, size: 16))
-                        .keyboardType(.decimalPad)
-                        .onChange(of: costText) { _, newValue in
-                            let formatted = formattedCostInput(newValue)
-                            if formatted != newValue { costText = formatted }
-                        }
-                        .focused($focusedField, equals: .cost)
-                        .id(QuickLogField.cost)
-                }
-            }
+            costsCard
 
             detailField(label: "SHOP / LOCATION") {
                 TextField("e.g. Jiffy Lube", text: $shop)
@@ -415,24 +401,6 @@ struct QuickLogView: View {
                 }
             }
 
-            // Selected services reminder
-            VStack(alignment: .leading, spacing: 6) {
-                Text("SERVICES")
-                    .font(.quicksandScaled(.semibold, size: 11))
-                    .foregroundStyle(Color.agMutedForeground)
-                    .tracking(0.5)
-                Text(selectedServices.joined(separator: ", "))
-                    .font(.quicksandScaled(.medium, size: 14))
-                    .foregroundStyle(Color.agForeground)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(12)
-            .background(Color.agCard)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .strokeBorder(Color.agBorder, lineWidth: 1)
-            )
         }
         .onChange(of: receiptPhoto) { _, newValue in
             Task {
@@ -441,6 +409,88 @@ struct QuickLogView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Costs
+
+    /// A cost field for each selected service and their running total.
+    /// "$ 0.00" stays grey until a cost is typed; the total is grey at $0.
+    var costsCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("COST PER SERVICE")
+                .font(.quicksandScaled(.semibold, size: 11))
+                .foregroundStyle(Color.agMutedForeground)
+                .tracking(0.5)
+
+            ForEach(selectedServices, id: \.self) { service in
+                HStack(spacing: 12) {
+                    Text(service)
+                        .font(.quicksandScaled(.medium, size: 14))
+                        .foregroundStyle(Color.agForeground)
+                        .lineLimit(2)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    serviceCostField(service)
+                }
+            }
+
+            Rectangle()
+                .fill(Color.agBorder)
+                .frame(height: 1)
+
+            HStack {
+                Text("Total")
+                    .font(.quicksandScaled(.semibold, size: 14))
+                    .foregroundStyle(Color.agForeground)
+                Spacer()
+                Text("$\(formattedAmount(totalCost))")
+                    .font(.quicksandScaled(.semibold, size: 16))
+                    .monospacedDigit()
+                    .foregroundStyle(totalCost > 0 ? Color.agForeground : Color.agMutedForeground)
+                    .contentTransition(.numericText())
+                    .animation(.easeOut(duration: 0.15), value: totalCost)
+            }
+            .accessibilityElement(children: .combine)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(Color.agCard)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .strokeBorder(Color.agBorder, lineWidth: 1)
+        )
+    }
+
+    func serviceCostField(_ service: String) -> some View {
+        let text = Binding(
+            get: { serviceCostTexts[service] ?? "" },
+            set: { newValue in
+                let formatted = formattedCostInput(newValue)
+                serviceCostTexts[service] = formatted.isEmpty ? nil : formatted
+            }
+        )
+        let hasValue = !(serviceCostTexts[service] ?? "").isEmpty
+        return HStack(spacing: 4) {
+            Text("$")
+                .foregroundStyle(hasValue ? Color.agForeground : Color.agMutedForeground)
+            TextField("", text: text, prompt: Text("0.00").foregroundStyle(Color.agMutedForeground))
+                .foregroundStyle(Color.agForeground)
+                .keyboardType(.decimalPad)
+                .monospacedDigit()
+                .focused($focusedField, equals: .serviceCost(service))
+        }
+        .font(.quicksandScaled(.medium, size: 15))
+        .padding(.horizontal, 10)
+        .frame(width: 112, height: 36)
+        .background(Color.agCard)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .strokeBorder(Color.agBorder, lineWidth: 1)
+        )
+        .id(QuickLogField.serviceCost(service))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(service) cost")
     }
 
     // MARK: - Review Step
@@ -479,9 +529,23 @@ struct QuickLogView: View {
                     .buttonStyle(.plain)
                 }
 
-                reviewRow("Services", selectedServices.joined(separator: ", "))
+                // Service names can be long, so they get the full width
+                // instead of the narrow label column the other rows use.
+                ForEach(selectedServices, id: \.self) { service in
+                    HStack(alignment: .firstTextBaseline, spacing: 12) {
+                        Text(service)
+                            .font(.quicksandScaled(.regular, size: 14))
+                            .foregroundStyle(Color.agMutedForeground)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        Text("$\(formattedAmount(cost(for: service)))")
+                            .font(.quicksandScaled(.semibold, size: 14))
+                            .foregroundStyle(Color.agForeground)
+                            .monospacedDigit()
+                    }
+                }
+                reviewRow("Total", "$\(formattedAmount(totalCost))")
+                    .padding(.bottom, 4)
                 reviewRow("Date", formattedDate)
-                reviewRow("Cost", costText.isEmpty ? "$0" : "$\(costText)")
                 reviewRow("Shop", shop.isEmpty ? "—" : shop)
                 reviewRow("Mileage", "\((Int(mileageText.filter(\.isNumber)) ?? vehicle?.mileage ?? 0).formatted()) mi")
             }
@@ -636,21 +700,26 @@ struct QuickLogView: View {
         customService = ""
     }
 
+    /// Saves one log per selected service, each with its own cost, so the
+    /// Cost section lists them as separate lines under one visit (same day
+    /// and shop) whose total is their sum.
     func saveLog() {
         guard let vehicleId = appState.selectedVehicleId else { return }
         let logMileage = Int(mileageText.filter(\.isNumber)) ?? vehicle?.mileage ?? 0
-        let log = ServiceLog(
-            id: UUID(),
-            vehicleId: vehicleId,
-            name: selectedServices.joined(separator: ", "),
-            date: date,
-            mileage: logMileage,
-            cost: parsedCostInput(costText) ?? 0,
-            shop: shop.isEmpty ? nil : shop,
-            notes: nil,
-            category: categorize(selectedServices)
-        )
-        appState.addServiceLog(log)
+        let trimmedShop = shop.trimmingCharacters(in: .whitespaces)
+        for service in selectedServices {
+            appState.addServiceLog(ServiceLog(
+                id: UUID(),
+                vehicleId: vehicleId,
+                name: service,
+                date: date,
+                mileage: logMileage,
+                cost: cost(for: service),
+                shop: trimmedShop.isEmpty ? nil : trimmedShop,
+                notes: nil,
+                category: .inferred(from: service)
+            ))
+        }
 
         // Update vehicle mileage if higher
         if logMileage > (vehicle?.mileage ?? 0) {
@@ -660,18 +729,19 @@ struct QuickLogView: View {
         dismiss()
     }
 
-    func categorize(_ services: [String]) -> ServiceCategory {
-        let joined = services.joined(separator: " ").lowercased()
-        if joined.contains("oil") { return .oil }
-        if joined.contains("brake") { return .brakes }
-        if joined.contains("tire") || joined.contains("wheel") || joined.contains("alignment") { return .tires }
-        if joined.contains("battery") { return .battery }
-        if joined.contains("transmission") { return .transmission }
-        if joined.contains("filter") { return .filters }
-        if joined.contains("coolant") || joined.contains("ac service") { return .cooling }
-        if joined.contains("spark") || joined.contains("wiper") { return .electrical }
-        return .general
+    func cost(for service: String) -> Double {
+        serviceCostTexts[service].flatMap(parsedCostInput) ?? 0
     }
+
+    /// Sum of the selected services' costs; removed services drop out.
+    var totalCost: Double {
+        selectedServices.reduce(0) { $0 + cost(for: $1) }
+    }
+
+    func formattedAmount(_ value: Double) -> String {
+        value.formatted(.number.precision(.fractionLength(2)))
+    }
+
 }
 
 #Preview {
@@ -680,5 +750,14 @@ struct QuickLogView: View {
 }
 
 private enum QuickLogField: Hashable {
-    case customService, cost, shop, mileage
+    case customService, shop, mileage
+    case serviceCost(String)
+
+    /// Number and decimal pads have no return key and need a Done button.
+    var isNumberPad: Bool {
+        switch self {
+        case .mileage, .serviceCost: return true
+        case .customService, .shop: return false
+        }
+    }
 }

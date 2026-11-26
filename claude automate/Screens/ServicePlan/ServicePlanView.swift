@@ -4,7 +4,6 @@ private struct CompletedServiceCardState: Equatable {
     let scheduledMileage: Int
     let serviceMileage: Int
     let date: Date
-    let months: Int?
     let items: [String]
 }
 
@@ -67,8 +66,11 @@ struct ServicePlanView: View {
         Array(plan.upcomingMilestones.dropFirst())
     }
 
+    /// `serviceLogCount` is passed in live from the app's logs, so newly saved
+    /// services are already counted; adding one for the completed card counted
+    /// them twice.
     private var displayedServiceLogCount: Int {
-        serviceLogCount + (completedService == nil ? 0 : 1)
+        serviceLogCount
     }
 
     /// Progress (0–1) through the current mileage interval.
@@ -333,22 +335,16 @@ struct ServicePlanView: View {
                 }
                 .padding(.bottom, 16)
 
-                // Mileage headline + unit/months
+                // Mileage headline + unit
                 HStack(alignment: .lastTextBaseline, spacing: 8) {
                     Text(milestone.mileage.formatted())
                         .font(.quicksand(.semibold, size: 36))
                         .foregroundStyle(ServicePlanPalette.textPrimary)
                         .monospacedDigit()
 
-                    if let months = milestone.months {
-                        Text("mi · \(months) mo")
-                            .font(.quicksand(.regular, size: 12))
-                            .foregroundStyle(ServicePlanPalette.textSecondary)
-                    } else {
-                        Text("mi")
-                            .font(.quicksand(.regular, size: 12))
-                            .foregroundStyle(ServicePlanPalette.textSecondary)
-                    }
+                    Text("mi")
+                        .font(.quicksand(.regular, size: 12))
+                        .foregroundStyle(ServicePlanPalette.textSecondary)
                 }
                 .padding(.bottom, 8)
 
@@ -410,14 +406,15 @@ struct ServicePlanView: View {
         }
         .sheet(isPresented: $showLogSheet) {
             if let milestone = nextMilestone {
-                LogMilestoneSheet(milestone: milestone, vehicle: vehicle) { log, itemNames in
-                    appState.addServiceLog(log)
+                LogMilestoneSheet(milestone: milestone, vehicle: vehicle) { logs, itemNames in
+                    // One log per item; they share date, shop and mileage.
+                    logs.forEach(appState.addServiceLog)
+                    guard let first = logs.first else { return }
                     withAnimation(.easeInOut(duration: 0.25)) {
                         completedService = CompletedServiceCardState(
                             scheduledMileage: milestone.mileage,
-                            serviceMileage: log.mileage,
-                            date: log.date,
-                            months: milestone.months,
+                            serviceMileage: first.mileage,
+                            date: first.date,
                             items: itemNames
                         )
                         showCompletedItems = true
@@ -463,17 +460,10 @@ struct ServicePlanView: View {
                         .monospacedDigit()
                         .frame(height: 36)
 
-                    if let months = completed.months {
-                        Text("mi · \(months) mo")
-                            .font(.quicksand(.regular, size: 12))
-                            .foregroundStyle(ServicePlanPalette.textMuted)
-                            .frame(height: 15.99)
-                    } else {
-                        Text("mi")
-                            .font(.quicksand(.regular, size: 12))
-                            .foregroundStyle(ServicePlanPalette.textMuted)
-                            .frame(height: 15.99)
-                    }
+                    Text("mi")
+                        .font(.quicksand(.regular, size: 12))
+                        .foregroundStyle(ServicePlanPalette.textMuted)
+                        .frame(height: 15.99)
                 }
                 .frame(width: 312.61, height: 36, alignment: .leading)
                 .padding(.bottom, 8)

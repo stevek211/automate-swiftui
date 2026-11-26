@@ -35,6 +35,7 @@ struct FormSheetScaffold<Content: View>: View {
             }
             .scrollDismissesKeyboard(.interactively)
             saveArea
+                .hiddenWhileKeyboardShown()
         }
         .keyboardDoneBar()
         .background(.white)

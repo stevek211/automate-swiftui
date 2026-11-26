@@ -16,8 +16,7 @@ enum ServicePlanBuilder {
         items: [OEMScheduleItemInput],
         currentMileage: Int,
         maxMileage: Int = defaultMaxMileage,
-        severeDuty: Bool = false,
-        monthsPerMile: Double = 12.0 / 10_000.0 // rough default: 10k mi/year
+        severeDuty: Bool = false
     ) -> ServicePlan {
 
         let step = milestoneStep
@@ -41,8 +40,7 @@ enum ServicePlanBuilder {
         let milestones: [ServicePlanMilestone] = stride(from: step, through: maxMileage, by: step)
             .compactMap { mileage in
                 guard let items = bucketed[mileage], !items.isEmpty else { return nil }
-                let months = Int((Double(mileage) * monthsPerMile).rounded())
-                return ServicePlanMilestone(mileage: mileage, months: months, items: items)
+                return ServicePlanMilestone(mileage: mileage, items: items)
             }
 
         return ServicePlan(milestones: milestones, currentMileage: currentMileage)
