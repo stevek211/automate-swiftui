@@ -41,7 +41,9 @@ struct PostVehicleServiceSetupFlow: View {
                     .transition(questionTransition)
             }
         }
-        .background(Color.agBackground)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .keyboardDoneBar()
+        .background(Color.agBackground.ignoresSafeArea())
         .allowsHitTesting(!isAnalyzing)
         .overlay { if isAnalyzing { analyzingOverlay } }
     }
@@ -113,17 +115,6 @@ struct PostVehicleServiceSetupFlow: View {
                             .shadow(color: .black.opacity(0.25), radius: 3, x: 0, y: 2)
                     }
                     .buttonStyle(ScaleButtonStyle())
-
-                    Button {
-                        onFinish()
-                    } label: {
-                        Text("Skip for now — I'll add this later")
-                            .font(Font.custom("Quicksand", size: 14).weight(.medium))
-                            .foregroundStyle(Color.theme.mutedText)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 36)
-                    }
-                    .buttonStyle(.plain)
                 }
                 .padding(.horizontal, 28)
                 .padding(.bottom, 24)
@@ -550,8 +541,7 @@ struct PostVehicleServiceSetupFlow: View {
             let exceedsOdometer = mileageExceedsOdometer(text.wrappedValue)
             TextField(placeholder, text: text)
                 .onChange(of: text.wrappedValue) { _, newValue in
-                    let digits = newValue.filter(\.isNumber)
-                    let formatted = formatMileageInput(digits)
+                    let formatted = formattedMileageInput(newValue)
                     if formatted != newValue {
                         text.wrappedValue = formatted
                     }
@@ -590,11 +580,6 @@ struct PostVehicleServiceSetupFlow: View {
     private func mileageExceedsOdometer(_ text: String) -> Bool {
         guard let value = Int(text.filter(\.isNumber)) else { return false }
         return value > vehicle.mileage
-    }
-
-    private func formatMileageInput(_ digits: String) -> String {
-        guard let value = Int(digits), !digits.isEmpty else { return "" }
-        return value.formatted()
     }
 
     // MARK: - Bottom CTA

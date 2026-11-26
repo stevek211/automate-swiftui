@@ -11,7 +11,8 @@ struct VehicleImageView: View {
             make: vehicle.make,
             model: vehicle.model,
             year: vehicle.year,
-            color: vehicle.color
+            color: vehicle.color,
+            bodyStyle: vehicle.bodyStyle
         )
     }
 

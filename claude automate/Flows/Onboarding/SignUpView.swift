@@ -24,23 +24,20 @@ struct SignUpView: View {
             dotsBackground
 
             VStack(spacing: 0) {
-                Spacer()
+                heroIllustration
+                    // Clear the Dynamic Island so the driver's hair doesn't crowd it.
+                    .padding(.top, 36)
 
-                // Logo
-                Image("app-logo")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 250, height: 100)
-                    .shadow(color: Color.theme.brand.opacity(0.20), radius: 50, x: 0, y: 25)
-
-                Spacer().frame(height: 20)
+                Spacer().frame(height: 40)
 
                 // Title
                 Text(isLogin ? "Welcome back" : "Create an account")
                     .font(.custom("Quicksand-SemiBold", size: 28))
+                    .tracking(-0.53)
                     .foregroundColor(Color.theme.ink)
+                    .frame(height: 40)
 
-                Spacer().frame(height: 28)
+                Spacer().frame(height: 46)
 
                 // Auth buttons
                 VStack(spacing: 12) {
@@ -77,7 +74,7 @@ struct SignUpView: View {
                 }
                 .padding(.horizontal, 24)
 
-                Spacer().frame(height: 20)
+                Spacer().frame(height: 31)
 
                 // "Already have an account? Log in" toggle
                 Button {
@@ -86,11 +83,12 @@ struct SignUpView: View {
                 } label: {
                     HStack(spacing: 0) {
                         Text(isLogin ? "New here? " : "Already have an account? ")
-                            .font(.custom("Quicksand-Light", size: 12))
-                            .foregroundStyle(Color.theme.mutedText)
+                            .font(.custom("Quicksand-Regular", size: 12))
+                            .foregroundStyle(Color(hex: "7E8694"))
                         Text(isLogin ? "Create an account" : "Log in")
                             .font(.custom("Quicksand-Regular", size: 12))
-                            .foregroundStyle(Color.theme.faintText)
+                            .tracking(-0.31)
+                            .foregroundStyle(Color(hex: "7E8694"))
                             .underline()
                     }
                 }
@@ -99,8 +97,10 @@ struct SignUpView: View {
                 Spacer().frame(height: 24)
 
                 legalFooter
-                    .padding(.bottom, 40)
+
+                Spacer(minLength: 24)
             }
+            .ignoresSafeArea(edges: .top)
 
             if !socialAuthError.isEmpty {
                 VStack {
@@ -117,7 +117,7 @@ struct SignUpView: View {
                 }
             }
         }
-        .background(onboardingGradient.ignoresSafeArea())
+        .background(Color.theme.card.ignoresSafeArea())
         .navigationBarBackButtonHidden(true)
         .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar {
@@ -142,35 +142,61 @@ struct SignUpView: View {
 
     private func authButton<I: View>(icon: () -> I, label: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            HStack(spacing: 12) {
-                icon().frame(width: 20, height: 20)
+            HStack(spacing: 16) {
+                icon().frame(width: 20, height: 24)
                 Text(label)
                     .font(.custom("Quicksand-Medium", size: 14))
+                    .tracking(-0.15)
                     .foregroundStyle(Color.theme.ink)
             }
             .frame(maxWidth: .infinity)
-            .frame(height: 52)
-            .background(.white)
-            .clipShape(Capsule())
-            .overlay(Capsule().strokeBorder(Color.theme.faintText, lineWidth: 0.5))
+            .frame(height: 53.5)
+            .background(Color.theme.card)
+            .clipShape(RoundedRectangle(cornerRadius: 25))
+            .overlay(RoundedRectangle(cornerRadius: 25).strokeBorder(Color(hex: "A2A2A2"), lineWidth: 0.75))
         }
         .buttonStyle(OnboardingScaleStylePublic())
+    }
+
+    // MARK: - Hero
+
+    /// Car illustration bleeding to the top edge, with the "REV" plate on the door.
+    private var heroIllustration: some View {
+        GeometryReader { geo in
+            // Figma: 406pt-wide image on a 394pt screen, offset 6pt left.
+            let width = geo.size.width * 406 / 394
+            let height = width * 271 / 406
+            Image("signup-hero")
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .frame(width: width, height: height)
+                .overlay(alignment: .top) {
+                    Text("REV")
+                        .font(.custom("Noteworthy-Light", size: 28))
+                        .tracking(5)
+                        .foregroundStyle(Color(hex: "ECECEE"))
+                        .shadow(color: .black.opacity(0.25), radius: 2, x: 0, y: 4)
+                        .frame(height: 40)
+                        .offset(x: 6.5, y: height * 181 / 271)
+                }
+                .offset(x: -6 * geo.size.width / 394)
+        }
+        .aspectRatio(394.0 / 271.0, contentMode: .fit)
+        .accessibilityHidden(true)
     }
 
     // MARK: - Icons
 
     private var appleIcon: some View {
-        Image(systemName: "apple.logo")
-            .font(.system(size: 18, weight: .medium))
-            .foregroundStyle(Color.theme.ink)
+        Image("auth-apple").resizable().frame(width: 20, height: 23.8)
     }
 
-    private var googleIcon: some View { GoogleIconCanvas() }
+    private var googleIcon: some View {
+        Image("auth-google").resizable().frame(width: 20, height: 20)
+    }
 
     private var emailIcon: some View {
-        Image(systemName: "envelope")
-            .font(.system(size: 16, weight: .regular))
-            .foregroundStyle(Color.theme.ink)
+        Image("auth-email").resizable().frame(width: 20, height: 20)
     }
 
     // MARK: - Background
@@ -204,7 +230,7 @@ struct SignUpView: View {
     }
 
     private var legalFooter: some View {
-        VStack(spacing: 2) {
+        VStack(spacing: 6) {
             HStack(spacing: 0) {
                 Text("By continuing, you agree to the ")
                     .font(.custom("Quicksand-Light", size: 12))

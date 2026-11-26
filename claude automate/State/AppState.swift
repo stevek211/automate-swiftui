@@ -76,6 +76,50 @@ class AppState {
             .sorted { $0.date > $1.date }
     }
 
+    // Documents (receipts, insurance cards, registration…)
+    var documents: [VehicleDocument] = [] {
+        didSet {
+            if !isDemo && activeUserId != nil { persistDocuments() }
+        }
+    }
+
+    func documents(for vehicleId: UUID) -> [VehicleDocument] {
+        documents.filter { $0.vehicleId == vehicleId }
+            .sorted { $0.addedAt > $1.addedAt }
+    }
+
+    func fileURL(for document: VehicleDocument) -> URL {
+        VehicleDocumentFiles.url(for: document, userId: activeUserId)
+    }
+
+    /// Saves the file to disk and adds the document. Returns nil if the write failed.
+    @discardableResult
+    func addDocument(
+        vehicleId: UUID, title: String, category: DocumentCategory,
+        kind: VehicleDocument.Kind, data: Data
+    ) -> VehicleDocument? {
+        let id = UUID()
+        guard let fileName = try? VehicleDocumentFiles.write(data, id: id, kind: kind, userId: activeUserId) else {
+            return nil
+        }
+        let document = VehicleDocument(
+            id: id, vehicleId: vehicleId, title: title, category: category,
+            kind: kind, fileName: fileName, addedAt: .now
+        )
+        documents.append(document)
+        return document
+    }
+
+    func updateDocument(_ document: VehicleDocument) {
+        guard let index = documents.firstIndex(where: { $0.id == document.id }) else { return }
+        documents[index] = document
+    }
+
+    func deleteDocument(_ document: VehicleDocument) {
+        VehicleDocumentFiles.delete(document, userId: activeUserId)
+        documents.removeAll { $0.id == document.id }
+    }
+
     // Maintenance Items
     var maintenanceItems: [MaintenanceItem] = [] {
         didSet {
@@ -142,6 +186,8 @@ class AppState {
 
     // Tab selection
     var selectedTab: AppTab = .home
+    /// Which half of the Learn screen is showing (Learn or Diagnose).
+    var learnTab: LearnTab = .learn
 
     // MARK: - Init
 
@@ -159,6 +205,7 @@ class AppState {
         // Load this user's persisted data (empty arrays if new user)
         vehicles = loadVehicles() ?? []
         serviceLogs = loadServiceLogs() ?? []
+        documents = loadDocuments() ?? []
         maintenanceItems = loadMaintenanceItems() ?? []
         oemSchedules = loadOEMSchedules() ?? [:]
         oemSources = loadOEMSources() ?? [:]
@@ -173,6 +220,30 @@ class AppState {
         }
 
         repairScheduleDerivedItems()
+        backfillBodyStyles()
+    }
+
+    /// Cars saved before body style was stored get it from their VIN, so the
+    /// stock photo shows the right body (a C-Class sedan, not the convertible).
+    private func backfillBodyStyles() {
+        // Normalize raw NHTSA classes ("Sedan/Saloon") saved by an earlier build.
+        for index in vehicles.indices {
+            if let style = vehicles[index].bodyStyle, !Vehicle.bodyStyleOptions.contains(style) {
+                vehicles[index].bodyStyle = Vehicle.bodyStyle(fromNHTSA: style)
+            }
+        }
+        let missing = vehicles.filter { $0.bodyStyle == nil && ($0.vin?.count ?? 0) == 17 }
+        guard !missing.isEmpty else { return }
+        Task {
+            for vehicle in missing {
+                guard let vin = vehicle.vin,
+                      let decoded = try? await NHTSAVINService.decodeVIN(vin),
+                      let body = Vehicle.bodyStyle(fromNHTSA: decoded.bodyClass),
+                      let index = vehicles.firstIndex(where: { $0.id == vehicle.id })
+                else { continue }
+                vehicles[index].bodyStyle = body
+            }
+        }
     }
 
     /// Repairs maintenance items saved before the schedule math was fixed.
@@ -237,6 +308,7 @@ class AppState {
         activeUserId = nil
         vehicles = []
         serviceLogs = []
+        documents = []
         maintenanceItems = []
         oemSchedules = [:]
         oemSources = [:]
@@ -293,6 +365,10 @@ class AppState {
         vehicles.removeAll { $0.id == vehicle.id }
         serviceLogs.removeAll { $0.vehicleId == vehicle.id }
         maintenanceItems.removeAll { $0.vehicleId == vehicle.id }
+        for document in documents where document.vehicleId == vehicle.id {
+            VehicleDocumentFiles.delete(document, userId: activeUserId)
+        }
+        documents.removeAll { $0.vehicleId == vehicle.id }
         oemSchedules.removeValue(forKey: vehicle.id)
         oemSources.removeValue(forKey: vehicle.id)
         if selectedVehicleId == vehicle.id {
@@ -456,13 +532,16 @@ class AppState {
         #endif
         vehicles = demoVehicles
         serviceLogs = DemoData.serviceLogs
+        documents = []
         maintenanceItems = DemoData.maintenanceItems
+        oemSchedules = DemoData.oemSchedules
         selectedVehicleId = DemoData.vehicleHondaId
     }
 
     private func clearDemoData() {
         vehicles = loadVehicles() ?? []
         serviceLogs = loadServiceLogs() ?? []
+        documents = loadDocuments() ?? []
         maintenanceItems = loadMaintenanceItems() ?? []
         oemSchedules = loadOEMSchedules() ?? [:]
         oemSources = loadOEMSources() ?? [:]
@@ -497,6 +576,21 @@ class AppState {
         } catch {
             print("Failed to persist service logs: \(error)")
         }
+    }
+
+    private func persistDocuments() {
+        do {
+            let data = try JSONEncoder().encode(documents)
+            try data.write(to: fileURL(for: "autoguard_documents"), options: .atomic)
+        } catch {
+            print("Failed to persist documents: \(error)")
+        }
+    }
+
+    private func loadDocuments() -> [VehicleDocument]? {
+        guard activeUserId != nil else { return nil }
+        guard let data = try? Data(contentsOf: fileURL(for: "autoguard_documents")) else { return nil }
+        return try? JSONDecoder().decode([VehicleDocument].self, from: data)
     }
 
     private func persistMaintenanceItems() {

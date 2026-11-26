@@ -28,10 +28,15 @@ struct FormSheetScaffold<Content: View>: View {
                     .padding(.horizontal, 20)
                     .padding(.top, 16)
                     .padding(.bottom, 16)
+                    // Tapping empty space closes the keyboard; fields and
+                    // buttons handle their own taps first.
+                    .contentShape(Rectangle())
+                    .onTapGesture { dismissKeyboard() }
             }
             .scrollDismissesKeyboard(.interactively)
             saveArea
         }
+        .keyboardDoneBar()
         .background(.white)
         .presentationDragIndicator(.hidden)
     }
@@ -200,4 +205,40 @@ func formattedMileageInput(_ text: String) -> String {
     let digits = text.filter(\.isNumber)
     guard let value = Int(digits), !digits.isEmpty else { return "" }
     return value.formatted()
+}
+
+/// Adds thousands separators while typing a dollar amount ("1234.5" → "1,234.5").
+/// Keeps a trailing decimal point and at most two decimal places so typing isn't fought.
+func formattedCostInput(_ text: String) -> String {
+    let decimalSeparator = Locale.current.decimalSeparator ?? "."
+    var whole = ""
+    var fraction: String?
+    for character in text {
+        if character.isNumber {
+            if fraction != nil {
+                if fraction!.count < 2 { fraction!.append(character) }
+            } else {
+                whole.append(character)
+            }
+        } else if String(character) == decimalSeparator || character == ".", fraction == nil {
+            fraction = ""
+        }
+    }
+    // Drop leading zeros ("007" → "7") but keep a single "0" before a decimal.
+    let trimmedWhole = String(whole.drop { $0 == "0" })
+    var result = Int(trimmedWhole.prefix(9)).map { $0.formatted() } ?? (whole.isEmpty ? "" : "0")
+    if let fraction {
+        if result.isEmpty { result = "0" }
+        result += decimalSeparator + fraction
+    }
+    return result
+}
+
+/// Reads a dollar amount typed with `formattedCostInput` ("1,234.50" → 1234.5).
+func parsedCostInput(_ text: String) -> Double? {
+    let decimalSeparator = Locale.current.decimalSeparator ?? "."
+    let normalized = text
+        .filter { $0.isNumber || String($0) == decimalSeparator }
+        .replacingOccurrences(of: decimalSeparator, with: ".")
+    return Double(normalized)
 }

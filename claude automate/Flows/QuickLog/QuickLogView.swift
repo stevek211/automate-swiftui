@@ -149,7 +149,7 @@ struct QuickLogView: View {
                 }
             }
             .onAppear {
-                mileageText = vehicle.map { String($0.mileage) } ?? ""
+                mileageText = vehicle.map { $0.mileage.formatted() } ?? ""
             }
         }
         .confirmationDialog("Discard changes?", isPresented: $showDiscardConfirm) {
@@ -386,6 +386,10 @@ struct QuickLogView: View {
                     TextField("0.00", text: $costText)
                         .font(.quicksandScaled(.medium, size: 16))
                         .keyboardType(.decimalPad)
+                        .onChange(of: costText) { _, newValue in
+                            let formatted = formattedCostInput(newValue)
+                            if formatted != newValue { costText = formatted }
+                        }
                         .focused($focusedField, equals: .cost)
                         .id(QuickLogField.cost)
                 }
@@ -399,9 +403,13 @@ struct QuickLogView: View {
             }
 
             detailField(label: "MILEAGE") {
-                TextField(vehicle.map { String($0.mileage) } ?? "0", text: $mileageText)
+                TextField(vehicle.map { $0.mileage.formatted() } ?? "0", text: $mileageText)
                     .font(.quicksandScaled(.medium, size: 16))
                     .keyboardType(.numberPad)
+                    .onChange(of: mileageText) { _, newValue in
+                        let formatted = formattedMileageInput(newValue)
+                        if formatted != newValue { mileageText = formatted }
+                    }
                     .focused($focusedField, equals: .mileage)
                     .id(QuickLogField.mileage)
             }
@@ -488,7 +496,7 @@ struct QuickLogView: View {
                 reviewRow("Date", formattedDate)
                 reviewRow("Cost", costText.isEmpty ? "$0" : "$\(costText)")
                 reviewRow("Shop", shop.isEmpty ? "—" : shop)
-                reviewRow("Mileage", "\((Int(mileageText) ?? vehicle?.mileage ?? 0).formatted()) mi")
+                reviewRow("Mileage", "\((Int(mileageText.filter(\.isNumber)) ?? vehicle?.mileage ?? 0).formatted()) mi")
             }
             .padding(16)
             .background(Color.agCard)
@@ -643,14 +651,14 @@ struct QuickLogView: View {
 
     func saveLog() {
         guard let vehicleId = appState.selectedVehicleId else { return }
-        let logMileage = Int(mileageText) ?? vehicle?.mileage ?? 0
+        let logMileage = Int(mileageText.filter(\.isNumber)) ?? vehicle?.mileage ?? 0
         let log = ServiceLog(
             id: UUID(),
             vehicleId: vehicleId,
             name: selectedServices.joined(separator: ", "),
             date: date,
             mileage: logMileage,
-            cost: Double(costText) ?? 0,
+            cost: parsedCostInput(costText) ?? 0,
             shop: shop.isEmpty ? nil : shop,
             notes: nil,
             category: categorize(selectedServices)

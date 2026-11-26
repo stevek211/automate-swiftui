@@ -10,6 +10,7 @@ enum VehicleImageService {
     ///   - make: Vehicle manufacturer (e.g. "Honda", "Toyota")
     ///   - model: Vehicle model (e.g. "CR-V", "Camry Hybrid")
     ///   - year: Model year (e.g. 2021)
+    ///   - bodyStyle: NHTSA body class (e.g. "Sedan/Saloon"); picks the right body variant.
     ///   - color: Vehicle color string (e.g. "White", "Midnight Blue") — mapped to IMAGIN paint ID
     ///   - angle: Camera angle, default "01" (front 3/4 view). "21" is a side profile, nose left.
     ///   - tightCrop: Adds `zoomType=fullscreen` so the car fills the image edge-to-edge.
@@ -20,12 +21,19 @@ enum VehicleImageService {
         model: String,
         year: Int,
         color: String? = nil,
+        bodyStyle: String? = nil,
         angle: String = "01",
         tightCrop: Bool = false,
         width: Int? = nil
     ) -> URL? {
         let resolvedMake = resolveParam(make)
-        let resolvedModel = resolveModelFamily(model)
+        var resolvedModel = resolveModelFamily(model, make: resolvedMake)
+        // Without a body style IMAGIN picks one for us, e.g. a C-Class comes back
+        // as the convertible. Appending it ("c-class-sedan") selects that body;
+        // a suffix IMAGIN doesn't know falls back to the default image.
+        if let bodyStyle, let suffix = bodySuffix(for: bodyStyle), !resolvedModel.hasSuffix(suffix) {
+            resolvedModel += "-\(suffix)"
+        }
 
         var queryItems: [URLQueryItem] = [
             URLQueryItem(name: "customer", value: "img"),
@@ -51,6 +59,20 @@ enum VehicleImageService {
         var components = URLComponents(string: "https://cdn.imagin.studio/getimage")
         components?.queryItems = queryItems
         return components?.url
+    }
+
+    // MARK: - Body style
+
+    /// Maps an NHTSA body class to the suffix IMAGIN understands.
+    /// SUVs, pickups and vans come in one body per model, so they get none.
+    private static func bodySuffix(for bodyClass: String) -> String? {
+        let body = bodyClass.lowercased()
+        if body.contains("convertible") || body.contains("cabriolet") || body.contains("roadster") { return "convertible" }
+        if body.contains("coupe") { return "coupe" }
+        if body.contains("wagon") { return "wagon" }
+        if body.contains("hatchback") || body.contains("liftback") { return "hatchback" }
+        if body.contains("sedan") || body.contains("saloon") { return "sedan" }
+        return nil
     }
 
     // MARK: - Color mapping
@@ -102,7 +124,25 @@ enum VehicleImageService {
     ///   "Grand Cherokee" → "grand-cherokee"
     ///   "F-150"          → "f-150"
     ///   "RAV4"           → "rav4"
-    static func resolveModelFamily(_ model: String) -> String {
+    static func resolveModelFamily(_ model: String, make: String = "") -> String {
+        let family = slug(model)
+        if make.lowercased() == "bmw", let series = bmwSeries(from: family) {
+            return series
+        }
+        return family
+    }
+
+    /// BMW names cars by trim ("230i", "M340i", "540d"); IMAGIN wants the series.
+    /// It guesses some of these right, but "230i" comes back as the 2 Series
+    /// Active Tourer and "M340i" as a full M3, so map the pattern explicitly.
+    ///   "230i" → "2-series", "m340i" → "3-series", "540d" → "5-series"
+    /// Leaves real model names alone ("m3", "x5", "i4", "2-series").
+    private static func bmwSeries(from family: String) -> String? {
+        guard let match = family.firstMatch(of: /^m?([1-8])\d{2}[a-z]*$/) else { return nil }
+        return "\(match.1)-series"
+    }
+
+    private static func slug(_ model: String) -> String {
         model
             .lowercased()
             .trimmingCharacters(in: .whitespaces)

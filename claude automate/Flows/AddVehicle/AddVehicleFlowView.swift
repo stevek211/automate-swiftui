@@ -20,6 +20,7 @@ struct AddVehicleFlowView: View {
     /// The user chose "Not listed? Type it in" on the Model menu.
     @State private var isTypingModel = false
     @State private var selectedTrim = ""
+    @State private var selectedBodyStyle = ""
     @State private var mileageInput = ""
     @State private var lookupManager = VehicleLookupManager()
 
@@ -54,6 +55,7 @@ struct AddVehicleFlowView: View {
             .transition(.move(edge: .trailing))
         } else {
             formBody
+                .keyboardDoneBar()
         }
     }
 
@@ -72,6 +74,7 @@ struct AddVehicleFlowView: View {
                         modelPickerField
                         trimPickerField
                     }
+                    bodyStylePickerField
                     mileageField
                     drivingProfileDivider
                     usageChips
@@ -335,6 +338,20 @@ struct AddVehicleFlowView: View {
                 if !selectedModel.isEmpty, let y = selectedYear, lookupManager.trims.isEmpty {
                     await lookupManager.loadTrims(make: selectedMake, model: selectedModel, year: y)
                 }
+            }
+        }
+    }
+
+    private var bodyStylePickerField: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            fieldLabel("Body Style", required: false)
+            Menu {
+                Button("Skip") { selectedBodyStyle = "" }
+                ForEach(Vehicle.bodyStyleOptions, id: \.self) { style in
+                    Button(style) { selectedBodyStyle = style }
+                }
+            } label: {
+                menuLabel(selectedBodyStyle.isEmpty ? nil : selectedBodyStyle, disabled: false)
             }
         }
     }
@@ -615,6 +632,7 @@ struct AddVehicleFlowView: View {
             selectedMake = result.make
             selectedModel = result.model
             selectedTrim = result.trim ?? ""
+            if let style = Vehicle.bodyStyle(fromNHTSA: result.bodyClass) { selectedBodyStyle = style }
         }
     }
 
@@ -642,7 +660,8 @@ struct AddVehicleFlowView: View {
             maintenanceTotal: 0,
             usage: usageLabels,
             conditions: conditionLabels,
-            annualMileage: selectedAnnualMileage.isEmpty ? nil : selectedAnnualMileage
+            annualMileage: selectedAnnualMileage.isEmpty ? nil : selectedAnnualMileage,
+            bodyStyle: selectedBodyStyle.isEmpty ? nil : selectedBodyStyle
         )
         appState.addVehicle(vehicle)
         if let userId = authState.currentUser?.id {

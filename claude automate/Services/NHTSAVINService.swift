@@ -54,6 +54,7 @@ enum NHTSAVINService {
         let TransmissionStyle: String?
         let TransmissionSpeeds: String?
         let DriveType: String?
+        let BodyClass: String?
         let ErrorCode: String?
         let ErrorText: String?
     }
@@ -162,7 +163,8 @@ enum NHTSAVINService {
             trim: trim,
             engine: engine,
             transmission: transmission,
-            driveType: driveType
+            driveType: driveType,
+            bodyClass: result.BodyClass?.isEmpty == false ? result.BodyClass : nil
         )
     }
 

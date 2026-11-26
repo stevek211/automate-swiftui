@@ -36,18 +36,18 @@ struct DiagnoseCategoryCard: View {
                 .padding(.bottom, 12)
 
                 Text(category.rawValue)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.quicksandScaled(.semibold, size: 14))
                     .foregroundStyle(Color.agForeground)
 
                 Text(category.description)
-                    .font(.system(size: 12))
+                    .font(.quicksandScaled(.regular, size: 12))
                     .foregroundStyle(Color.agMutedForeground)
                     .padding(.top, 2)
                     .lineLimit(2)
 
                 if isComingSoon {
                     Text("Coming soon")
-                        .font(.system(size: 10, weight: .medium))
+                        .font(.quicksandScaled(.medium, size: 10))
                         .foregroundStyle(Color.agMutedForeground)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 2)

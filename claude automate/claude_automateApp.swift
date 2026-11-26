@@ -98,6 +98,11 @@ struct RootView: View {
                 showOnboarding = false
                 return
             }
+            // `-showOnboarding`: open the onboarding/auth screens even when signed in (UI checks only).
+            if ProcessInfo.processInfo.arguments.contains("-showOnboarding") {
+                showOnboarding = true
+                return
+            }
             // `-debugUser <uuid>`: open that account's locally saved data without signing in
             // (UI checks against real saved cars; nothing is sent to the server).
             let args = ProcessInfo.processInfo.arguments

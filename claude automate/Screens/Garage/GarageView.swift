@@ -394,6 +394,7 @@ private struct GarageCarImage: View {
             model: vehicle.model,
             year: vehicle.year,
             color: vehicle.color,
+            bodyStyle: vehicle.bodyStyle,
             angle: "21",          // left-facing side profile, front at left as in the design
             tightCrop: true,
             width: 1000

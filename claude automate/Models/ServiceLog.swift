@@ -10,6 +10,13 @@ struct ServiceLog: Identifiable, Hashable, Codable {
     var shop: String?
     var notes: String?
     var category: ServiceCategory
+
+    /// Shop name on the estimated records created from the add-car questions.
+    static let baselineShop = "AutoGuard Baseline"
+
+    /// An estimate from the add-car questions, not a service the user logged.
+    /// Feeds the service plan, but isn't real spending.
+    var isBaselineEstimate: Bool { shop == Self.baselineShop }
 }
 
 enum ServiceCategory: String, Codable, CaseIterable, Identifiable {

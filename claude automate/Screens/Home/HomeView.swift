@@ -15,7 +15,9 @@ private extension Color {
 struct HomeView: View {
     @Environment(AppState.self) private var appState
     @Environment(AuthState.self) private var authState
-    @State private var showServiceHistory = false
+    /// Which Vehicle Detail tab to push; nil = not showing.
+    @State private var detailDestination: VehicleDetailView.MaintenanceView?
+    @State private var showServicePlan = false
 
     var body: some View {
         ScrollView {
@@ -32,9 +34,25 @@ struct HomeView: View {
         .scrollIndicators(.hidden)
         .appBackground()
         .toolbar(.hidden, for: .navigationBar)
-        .navigationDestination(isPresented: $showServiceHistory) {
-            if let vehicle = appState.selectedVehicle {
-                VehicleDetailView(vehicle: vehicle)
+        .navigationDestination(item: $detailDestination) { tab in
+            if let vehicle = appState.selectedVehicle ?? appState.vehicles.first {
+                VehicleDetailView(vehicle: vehicle, openTo: tab)
+            }
+        }
+        // Same Service Logbook screen as Vehicle Detail's "Service Plan" button.
+        .fullScreenCover(isPresented: $showServicePlan) {
+            if let vehicle = appState.selectedVehicle ?? appState.vehicles.first {
+                NavigationStack {
+                    let items = appState.oemSchedule(for: vehicle.id) ?? ServicePlanBuilder.demoItems
+                    let logs = appState.serviceLogs(for: vehicle.id)
+                    ServicePlanView(
+                        vehicle: vehicle,
+                        oemItems: items,
+                        sources: appState.oemSources(for: vehicle.id),
+                        serviceLogs: logs,
+                        serviceLogCount: logs.count
+                    )
+                }
             }
         }
     }
@@ -314,14 +332,17 @@ struct HomeView: View {
                     imageOffset: CGPoint(x: -14, y: -5),
                     title: "Diagnose",
                     subtitle: "Dashboard lights and noises"
-                ) { appState.selectedTab = .learn }
+                ) {
+                    appState.learnTab = .diagnose
+                    appState.selectedTab = .learn
+                }
             }
             .frame(maxWidth: .infinity)
         }
     }
 
     private var serviceHistoryCard: some View {
-        Button { showServiceHistory = true } label: {
+        Button { showServicePlan = true } label: {
             VStack(alignment: .leading, spacing: 0) {
                 Text("Service\nhistory")
                     .font(.quicksand(.bold, size: 21))
@@ -362,9 +383,7 @@ struct HomeView: View {
     }
 
     private var carDocumentsCard: some View {
-        Button {
-            // TODO: Car documents screen (registration, insurance, etc.)
-        } label: {
+        Button { detailDestination = .documents } label: {
             HStack(spacing: 0) {
                 Text("Car documents")
                     .font(.quicksand(.bold, size: 12))
@@ -514,6 +533,7 @@ private struct HomeHeroCarImage: View {
             model: vehicle.model,
             year: vehicle.year,
             color: vehicle.color,
+            bodyStyle: vehicle.bodyStyle,
             angle: "28",
             tightCrop: true,
             width: 1200

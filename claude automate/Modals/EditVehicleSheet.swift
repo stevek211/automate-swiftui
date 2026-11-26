@@ -76,6 +76,17 @@ struct EditVehicleSheet: View {
                     label: { $0.isEmpty ? (lookupManager.isLoadingTrims ? "Loading…" : "Not set") : $0 }
                 )
             }
+
+            FormSheetField(label: "Body style") {
+                FormSheetMenuField(
+                    selection: Binding(
+                        get: { draft.wrappedValue.bodyStyle ?? "" },
+                        set: { draft.wrappedValue.bodyStyle = $0.isEmpty ? nil : $0 }
+                    ),
+                    options: [""] + Vehicle.bodyStyleOptions,
+                    label: { $0.isEmpty ? "Not set" : $0 }
+                )
+            }
         }
     }
 

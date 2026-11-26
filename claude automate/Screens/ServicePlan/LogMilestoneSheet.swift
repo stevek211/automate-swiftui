@@ -89,13 +89,20 @@ struct LogMilestoneSheet: View {
                         .padding(.horizontal, 20)
                         .padding(.top, 16)
                         .padding(.bottom, 16)
+                        // Tapping empty space closes the keyboard; fields and
+                        // buttons handle their own taps first.
+                        .contentShape(Rectangle())
+                        .onTapGesture { focusedField = nil }
                 }
                 .scrollDismissesKeyboard(.interactively)
                 .onChange(of: focusedField) { _, field in
                     guard let field else { return }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                        withAnimation(.easeOut(duration: 0.25)) {
-                            proxy.scrollTo(field, anchor: .center)
+                    // Wait for the keyboard, then scroll only if the field is hidden
+                    // (nil anchor), so hopping between visible fields doesn't move
+                    // the form under the next tap.
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        withAnimation(.easeOut(duration: 0.2)) {
+                            proxy.scrollTo(field)
                         }
                     }
                 }
@@ -103,6 +110,9 @@ struct LogMilestoneSheet: View {
             // Hidden while typing so the keyboard doesn't push it over the field.
             if focusedField == nil {
                 saveArea
+            } else {
+                // Sits just above the keyboard: number pads have no return key.
+                keyboardDoneBar
             }
         }
         .background(.white)
@@ -170,12 +180,11 @@ struct LogMilestoneSheet: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
-                underlineField(label: "SERVICE MILEAGE *") { //
+                underlineField(label: "SERVICE MILEAGE *", focusing: .mileage) {
                     HStack(alignment: .firstTextBaseline, spacing: 4) {
                         TextField("", text: $serviceMileageText)
                             .onChange(of: serviceMileageText) { _, newValue in
-                                let digits = newValue.filter(\.isNumber)
-                                let formatted = formatMileageInput(digits)
+                                let formatted = formattedMileageInput(newValue)
                                 if formatted != newValue {
                                     serviceMileageText = formatted
                                 }
@@ -196,17 +205,23 @@ struct LogMilestoneSheet: View {
             }
 
             // SHOP text 
-            underlineField(label: "SHOP") {
+            underlineField(label: "SHOP", focusing: .shop) {
                 TextField("e.g. Jiffy Lube", text: $shop)
                     .font(.quicksand(.regular, size: 17))
                     .foregroundStyle(ServicePlanPalette.textPrimary)
+                    // Shop names are proper nouns: autocorrect flags them and its
+                    // replacement popovers swallow the next tap.
+                    .autocorrectionDisabled()
+                    .textInputAutocapitalization(.words)
+                    .submitLabel(.next)
+                    .onSubmit { focusedField = .cost }
                     .focused($focusedField, equals: .shop)
                     .id(LogSheetField.shop)
             }
             .frame(maxWidth: .infinity)
 
             // TOTAL COST
-            underlineField(label: "TOTAL COST") {
+            underlineField(label: "TOTAL COST", focusing: .cost) {
                 HStack(spacing: 4) {
                     Text("$")
                         .font(.quicksand(.regular, size: 17))
@@ -215,9 +230,9 @@ struct LogMilestoneSheet: View {
                         .focused($focusedField, equals: .cost)
                         .id(LogSheetField.cost)
                         .onChange(of: costText) { _, newValue in
-                            let filtered = sanitizedCostInput(newValue)
-                            if filtered != newValue {
-                                costText = filtered
+                            let formatted = formattedCostInput(newValue)
+                            if formatted != newValue {
+                                costText = formatted
                             }
                         }
                         .font(.quicksand(.regular, size: 17))
@@ -456,6 +471,25 @@ struct LogMilestoneSheet: View {
 
     // MARK: - Save Area
 
+    private var keyboardDoneBar: some View {
+        HStack {
+            Spacer()
+            Button("Done") { focusedField = nil }
+                .font(.quicksand(.semibold, size: 16))
+                .foregroundStyle(ServicePlanPalette.textPrimary)
+                .padding(.horizontal, 20)
+                .frame(height: 44)
+                .contentShape(Rectangle())
+                .buttonStyle(.plain)
+        }
+        .background(.white)
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(ServicePlanPalette.borderLight)
+                .frame(height: 0.75)
+        }
+    }
+
     private var saveArea: some View {
         VStack {
             Button { save() } label: {
@@ -483,8 +517,11 @@ struct LogMilestoneSheet: View {
     // MARK: - Underline Field Helper
 
     @ViewBuilder
+    /// A labelled field with an underline. With `focusing`, a tap anywhere on the
+    /// row (label, prefix, underline) focuses that field, not just the text line.
     private func underlineField<Content: View>(
         label: String,
+        focusing field: LogSheetField? = nil,
         @ViewBuilder content: () -> Content
     ) -> some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -502,6 +539,12 @@ struct LogMilestoneSheet: View {
                         .frame(height: 0.75)
                 }
         }
+        .padding(.vertical, 6)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if let field { focusedField = field }
+        }
+        .padding(.vertical, -6)
     }
 
     private func removeButton(action: @escaping () -> Void) -> some View {
@@ -589,9 +632,7 @@ struct LogMilestoneSheet: View {
 
     private func save() {
         guard let serviceMileage = parsedServiceMileage else { return }
-        let cost = Double(costText
-            .replacingOccurrences(of: "$", with: "")
-            .trimmingCharacters(in: .whitespaces)) ?? 0
+        let cost = parsedCostInput(costText) ?? 0
         let log = ServiceLog(
             id: UUID(),
             vehicleId: vehicle.id,
@@ -624,32 +665,6 @@ struct LogMilestoneSheet: View {
         let digits = serviceMileageText.filter { $0.isNumber }
         guard !digits.isEmpty else { return nil }
         return Int(digits)
-    }
-
-    private func sanitizedCostInput(_ value: String) -> String {
-        var result = ""
-        var hasDecimal = false
-        var decimalPlaces = 0
-
-        for character in value {
-            if character.isNumber {
-                if hasDecimal {
-                    guard decimalPlaces < 2 else { continue }
-                    decimalPlaces += 1
-                }
-                result.append(character)
-            } else if character == ".", !hasDecimal {
-                hasDecimal = true
-                result.append(character)
-            }
-        }
-
-        return result
-    }
-
-    private func formatMileageInput(_ digits: String) -> String {
-        guard let value = Int(digits), !digits.isEmpty else { return "" }
-        return value.formatted()
     }
 
     private var canSave: Bool {

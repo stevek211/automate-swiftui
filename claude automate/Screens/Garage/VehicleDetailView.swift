@@ -25,14 +25,23 @@ struct VehicleDetailView: View {
     }
 
     enum MaintenanceView: String, CaseIterable, Identifiable {
-        case conditions = "Conditions"
-        case cost = "Cost"
         case documents = "Documents"
+        case cost = "Cost"
+        case conditions = "Conditions"
         var id: String { rawValue }
     }
 
     @State private var section: Section = .maintenance
-    @State private var maintenanceView: MaintenanceView = .cost
+    @State private var maintenanceView: MaintenanceView
+    /// Set when another screen links straight to a tab (e.g. Home → Car documents);
+    /// the page then scrolls down to the tabs on open.
+    private let linkedView: MaintenanceView?
+
+    init(vehicle: Vehicle, openTo linkedView: MaintenanceView? = nil) {
+        self.vehicle = vehicle
+        self.linkedView = linkedView
+        _maintenanceView = State(initialValue: linkedView ?? .cost)
+    }
     @State private var costRange: CostRange = .allTime
     @State private var showServicePlan = false
 
@@ -42,6 +51,7 @@ struct VehicleDetailView: View {
     }
 
     var body: some View {
+        ScrollViewReader { proxy in
         ScrollView {
             VStack(spacing: 0) {
                 hero
@@ -51,6 +61,7 @@ struct VehicleDetailView: View {
 
                 VStack(spacing: 16) {
                     sectionTabs
+                        .id(Self.tabsAnchor)
                     switch section {
                     case .maintenance: maintenanceContent
                     case .specs: specsContent
@@ -61,10 +72,20 @@ struct VehicleDetailView: View {
             }
         }
         .scrollIndicators(.hidden)
+        .onAppear {
+            guard linkedView != nil else { return }
+            // Wait a beat so the push animation finishes before scrolling.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                withAnimation(.snappy) { proxy.scrollTo(Self.tabsAnchor, anchor: .top) }
+            }
+        }
+        }
         .background(Color.vdPage.ignoresSafeArea())
         .overlay(alignment: .top) { topBar }
         .toolbar(.hidden, for: .navigationBar)
     }
+
+    private static let tabsAnchor = "vehicle-detail-tabs"
 
     // MARK: - Top bar (fixed, glass circles)
 
@@ -139,7 +160,13 @@ struct VehicleDetailView: View {
         .padding(.bottom, 64)
         .background(
             LinearGradient(colors: [.vdHeroTop, .vdPage], startPoint: .top, endPoint: .bottom)
-                .ignoresSafeArea(edges: .top)
+                // Scroll content can't extend under the status bar, so paint the
+                // gradient's top color upward to fill it (and the pull-down bounce).
+                .overlay(alignment: .top) {
+                    Color.vdHeroTop
+                        .frame(height: 600)
+                        .offset(y: -600)
+                }
         )
         .padding(.bottom, -64)  // the action row sits in the gradient's tail
     }
@@ -231,14 +258,16 @@ struct VehicleDetailView: View {
                 placeholder(title: "Conditions", message: "Wear and condition tracking is coming soon.")
             case .cost:
                 VehicleCostPanel(
-                    logs: appState.serviceLogs(for: current.id),
+                    // Baseline estimates aren't real spending; leaving them out
+                    // keeps the "No service costs yet" state until a real log.
+                    logs: appState.serviceLogs(for: current.id).filter { !$0.isBaselineEstimate },
                     range: $costRange
                 ) {
                     appState.selectedVehicleId = current.id
                     appState.showQuickLog = true
                 }
             case .documents:
-                placeholder(title: "Documents", message: "Receipts and records will live here.")
+                VehicleDocumentsPanel(vehicle: current)
             }
         }
     }
@@ -284,8 +313,10 @@ struct VehicleDetailView: View {
 
             VStack(spacing: 0) {
                 specRow("Year", "\(current.year)", first: true)
-                specRow("Make / Model", "\(current.make) \(current.model)")
+                specRow("Make", current.make)
+                specRow("Model", current.model)
                 specRow("Trim", nonEmpty(current.trim))
+                specRow("Body style", nonEmpty(current.bodyStyle))
                 specRow("Color", nonEmpty(current.color))
                 specRow("VIN", nonEmpty(current.vin))
             }

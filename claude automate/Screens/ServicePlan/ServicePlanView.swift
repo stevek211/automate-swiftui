@@ -27,8 +27,6 @@ struct ServicePlanView: View {
     @State private var showMileageEdit = false
     @State private var showLogSheet = false
     @State private var mileageDraft: String = ""
-    @FocusState private var mileageFocused: Bool
-    @State private var mileageSheetHeight: CGFloat = 220
     @State private var mileageError = false
     @State private var completedService: CompletedServiceCardState?
     @State private var showCompletedItems = true
@@ -194,72 +192,12 @@ struct ServicePlanView: View {
         .padding(.horizontal, 20)
         .padding(.bottom, 20)
         .frame(maxWidth: .infinity, minHeight: 119.99)
-        .sheet(isPresented: $showMileageEdit) { mileageEditSheet }
-    }
-
-    // MARK: - Mileage Edit Sheet
-
-    private var mileageEditSheet: some View {
-        VStack(spacing: 20) {
-            Text("Update Odometer")
-                .font(.quicksand(.semibold, size: 16))
-                .foregroundStyle(ServicePlanPalette.textPrimary)
-
-            HStack(spacing: 8) {
-                TextField("", text: $mileageDraft)
-                    .font(.quicksand(.semibold, size: 24))
-                    .foregroundStyle(ServicePlanPalette.textPrimary)
-                    .keyboardType(.numberPad)
-                    .textFieldStyle(.plain)
-                    .focused($mileageFocused)
-                    .onChange(of: mileageDraft) { _, newValue in
-                        mileageError = false
-                        // Show thousands separators as the user types (e.g. 32,312).
-                        let digits = String(newValue.filter(\.isNumber).prefix(7))
-                        let formatted = Int(digits).map { $0.formatted() } ?? ""
-                        if formatted != newValue { mileageDraft = formatted }
-                    }
-                Text("mi")
-                    .font(.quicksand(.regular, size: 18))
-                    .foregroundStyle(ServicePlanPalette.textMuted)
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 14)
-            .background(ServicePlanPalette.neutralChipBg)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-
-            if mileageError {
-                Text("Mileage can only go up (min \(minimumMileage.formatted()) mi)")
-                    .font(.quicksand(.regular, size: 11))
-                    .foregroundStyle(Color.agDestructive)
-            }
-
-            Button {
-                guard let value = Int(mileageDraft.filter { $0.isNumber }),
-                      value >= minimumMileage else {
-                    mileageError = true
-                    return
-                }
+        .sheet(isPresented: $showMileageEdit) {
+            OdometerEditSheet(draft: $mileageDraft, error: $mileageError, minimumMileage: minimumMileage) { value in
                 withAnimation(.easeInOut(duration: 0.3)) { currentMileage = value }
                 showMileageEdit = false
-            } label: {
-                Text("Save")
-                    .font(.quicksand(.semibold, size: 14))
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background(ServicePlanPalette.textPrimary)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
             }
-            .buttonStyle(.plain)
         }
-        .padding(.horizontal, 24)
-        .padding(.top, 28)
-        .padding(.bottom, 16)
-        // Size the sheet to its content so there's no empty space under Save.
-        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { mileageSheetHeight = $0 }
-        .presentationDetents([.height(mileageSheetHeight)])
-        .onAppear { mileageFocused = true }
     }
 
     // MARK: - Divider
@@ -860,4 +798,85 @@ private struct SourceLinkRow: View {
         serviceLogCount: 6
     )
     .environment(AppState())
+}
+
+// MARK: - Odometer Edit Sheet
+
+/// Owns its keyboard focus, so focus ends with the sheet instead of lingering
+/// on the Service Plan screen and flashing the keyboard back up after dismissal.
+private struct OdometerEditSheet: View {
+    @Binding var draft: String
+    @Binding var error: Bool
+    let minimumMileage: Int
+    let onSave: (Int) -> Void
+
+    @FocusState private var focused: Bool
+    @State private var sheetHeight: CGFloat = 220
+
+    var body: some View {
+        VStack(spacing: 20) {
+            Text("Update Odometer")
+                .font(.quicksand(.semibold, size: 16))
+                .foregroundStyle(ServicePlanPalette.textPrimary)
+
+            HStack(spacing: 8) {
+                TextField("", text: $draft)
+                    .font(.quicksand(.semibold, size: 24))
+                    .foregroundStyle(ServicePlanPalette.textPrimary)
+                    .keyboardType(.numberPad)
+                    .textFieldStyle(.plain)
+                    .focused($focused)
+                    .onChange(of: draft) { _, newValue in
+                        error = false
+                        // Show thousands separators as the user types (e.g. 32,312).
+                        let digits = String(newValue.filter(\.isNumber).prefix(7))
+                        let formatted = Int(digits).map { $0.formatted() } ?? ""
+                        if formatted != newValue { draft = formatted }
+                    }
+                Text("mi")
+                    .font(.quicksand(.regular, size: 18))
+                    .foregroundStyle(ServicePlanPalette.textMuted)
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 14)
+            .background(ServicePlanPalette.neutralChipBg)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+
+            if error {
+                Text("Mileage can only go up (min \(minimumMileage.formatted()) mi)")
+                    .font(.quicksand(.regular, size: 11))
+                    .foregroundStyle(Color.agDestructive)
+            }
+
+            Button {
+                guard let value = Int(draft.filter { $0.isNumber }),
+                      value >= minimumMileage else {
+                    error = true
+                    return
+                }
+                // Drop focus before closing so the keyboard can't flash back up.
+                focused = false
+                onSave(value)
+            } label: {
+                Text("Save")
+                    .font(.quicksand(.semibold, size: 14))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(ServicePlanPalette.textPrimary)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 24)
+        .padding(.top, 28)
+        .padding(.bottom, 16)
+        .keyboardDoneBar { focused = false }
+        // Size the sheet to its content so there's no empty space under Save.
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { sheetHeight = $0 }
+        .presentationDetents([.height(sheetHeight)])
+        // No auto-focus on open: focusing while the sheet is still presenting makes
+        // iOS replay the keyboard as the sheet closes (a quick keyboard flash).
+        .onDisappear { focused = false }
+    }
 }

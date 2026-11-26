@@ -25,6 +25,8 @@ enum CarAPIService {
         let engine: String?
         let transmission: String?
         let driveType: String?
+        /// NHTSA body class, e.g. "Sedan/Saloon", "Coupe", "Convertible/Cabriolet".
+        var bodyClass: String? = nil
     }
 
     private struct AuthResponse: Decodable {
