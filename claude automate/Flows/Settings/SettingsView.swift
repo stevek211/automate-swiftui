@@ -84,18 +84,7 @@ struct SettingsView: View {
     // MARK: - Header
 
     private var backButton: some View {
-        Button { dismiss() } label: {
-            Image("settings-icon-back")
-                .renderingMode(.template)
-                .foregroundStyle(ink)
-                .frame(width: 40, height: 40)
-                .background(Circle().fill(Color.white))
-                .overlay(Circle().stroke(Color.settingsBackBorder, lineWidth: 1))
-                .shadow(color: .black.opacity(0.1), radius: 1.5, y: 1)
-                .contentShape(Circle())
-        }
-        .buttonStyle(ScaleButtonStyle())
-        .accessibilityLabel("Back")
+        BackButton()
     }
 
     private var title: some View {

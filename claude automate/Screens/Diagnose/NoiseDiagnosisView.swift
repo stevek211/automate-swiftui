@@ -127,6 +127,7 @@ struct NoiseDiagnosisView: View {
         .appBackground()
         .navigationTitle("Noise Diagnosis")
         .navigationBarTitleDisplayMode(.inline)
+        .standardBackButton()
         .animation(.spring(duration: 0.3), value: currentStep)
     }
 

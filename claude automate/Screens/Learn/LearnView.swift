@@ -710,7 +710,7 @@ private struct LearnStatusTag: View {
 
     var body: some View {
         Text(status.rawValue)
-            .font(.quicksandScaled(.semibold, size: 10))
+            .font(.quicksandScaled(.semibold, size: 11))
             .foregroundStyle(Color.statusColor(status))
             .padding(.horizontal, 7)
             .padding(.vertical, 2)
@@ -743,6 +743,7 @@ struct LearnComingSoonView: View {
         .appBackground()
         .navigationTitle(title.replacingOccurrences(of: "\n", with: " "))
         .navigationBarTitleDisplayMode(.inline)
+        .standardBackButton()
     }
 }
 
@@ -774,7 +775,7 @@ struct LearnArticleRow: View {
 
             HStack(spacing: 8) {
                 Text(article.difficulty.rawValue)
-                    .font(.quicksandScaled(.semibold, size: 10))
+                    .font(.quicksandScaled(.semibold, size: 11))
                     .foregroundStyle(difficultyColor)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 2)

@@ -526,7 +526,7 @@ struct LogMilestoneSheet: View {
     ) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(label)
-                .font(.quicksand(.medium, size: 10))
+                .font(.quicksand(.medium, size: 11))
                 .tracking(1.80)
                 .foregroundStyle(Color.theme.mutedText)
             content()

@@ -112,7 +112,7 @@ struct ActionLabel: View {
 
     var body: some View {
         Text(action.displayText)
-            .font(.custom("Menlo-Regular", size: 8))
+            .font(.custom("Menlo-Regular", size: 11))
             .kerning(0.4)
             .foregroundStyle(fg)
     }
@@ -265,7 +265,7 @@ struct CompactMilestoneRow: View {
                             .foregroundStyle(ServicePlanPalette.textPrimary)
                         if let months = milestone.months {
                             Text("\(months) mo")
-                                .font(.quicksand(.medium, size: 10))
+                                .font(.quicksand(.medium, size: 11))
                                 .foregroundStyle(ServicePlanPalette.textMuted)
                         }
                     }
@@ -275,7 +275,7 @@ struct CompactMilestoneRow: View {
                     // Item summary + chevron
                     HStack(spacing: 12) {
                         Text("\(milestone.replaceCount) replace · \(milestone.items.count) items")
-                            .font(.quicksand(.medium, size: 10))
+                            .font(.quicksand(.medium, size: 11))
                             .foregroundStyle(ServicePlanPalette.textSecondary)
                         Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                             .font(.system(size: 10, weight: .medium))
@@ -327,19 +327,19 @@ struct CompletedMilestoneRow: View {
 
                     if let months = milestone.months {
                         Text("\(months) mo")
-                            .font(.quicksand(.medium, size: 10))
+                            .font(.quicksand(.medium, size: 11))
                             .foregroundStyle(ServicePlanPalette.textMuted)
                     }
 
                     Spacer(minLength: 8)
 
                     Text("\(milestone.replaceCount) replace · \(milestone.items.count) items")
-                        .font(.quicksand(.medium, size: 10))
+                        .font(.quicksand(.medium, size: 11))
                         .foregroundStyle(ServicePlanPalette.textSecondary)
 
                     if loggedCount > 0 {
                         Text("\(loggedCount)/\(requiredCount)")
-                            .font(Font.custom("Menlo", size: 9).weight(.medium))
+                            .font(Font.custom("Menlo", size: 11).weight(.medium))
                             .foregroundStyle(ServicePlanPalette.teal)
                     }
 
@@ -392,7 +392,7 @@ struct CompletedServiceItemRow: View {
             Spacer(minLength: 4)
 
             Text(actionLabel)
-                .font(Font.custom("Menlo", size: 8).weight(.regular))
+                .font(Font.custom("Menlo", size: 11).weight(.regular))
                 .tracking(0.40)
                 .foregroundStyle(actionColor)
         }

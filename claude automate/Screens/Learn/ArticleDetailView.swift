@@ -78,6 +78,7 @@ struct ArticleDetailView: View {
         .appBackground()
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
+        .standardBackButton()
     }
 
     var difficultyColor: Color {

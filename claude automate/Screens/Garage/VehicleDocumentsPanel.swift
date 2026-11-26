@@ -330,7 +330,7 @@ private struct DocumentThumbnail: View {
         .overlay(alignment: .bottomTrailing) {
             if kind == .pdf {
                 Text("PDF")
-                    .font(.quicksand(.bold, size: 8))
+                    .font(.quicksand(.bold, size: 11))
                     .foregroundStyle(.white)
                     .padding(.horizontal, 4)
                     .padding(.vertical, 1)

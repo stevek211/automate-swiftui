@@ -128,6 +128,7 @@ struct SystemDetailView: View {
         .appBackground()
         .navigationTitle(system.name)
         .navigationBarTitleDisplayMode(.inline)
+        .standardBackButton()
     }
 }
 

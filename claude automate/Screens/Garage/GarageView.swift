@@ -354,7 +354,7 @@ struct GarageVehicleCard: View {
                     .font(.quicksand(.regular, size: 19))
                     .frame(height: 20.9)
                 Text("MODEL YEAR")
-                    .font(.quicksand(.regular, size: 8))
+                    .font(.quicksand(.regular, size: 11))
                     .opacity(0.6)
             }
             .foregroundStyle(Color.garageInk)
@@ -448,7 +448,7 @@ struct MaintenanceItemRow: View {
                     .foregroundStyle(Color.agForeground)
                 Spacer()
                 Text(item.status.rawValue)
-                    .font(.quicksandScaled(.semibold, size: 10))
+                    .font(.quicksandScaled(.semibold, size: 11))
                     .foregroundStyle(statusColor)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 2)

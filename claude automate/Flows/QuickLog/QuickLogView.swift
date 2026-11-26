@@ -39,7 +39,7 @@ struct QuickLogView: View {
                 // Header
                 HStack {
                     if step != .choose {
-                        Button {
+                        BackButton {
                             withAnimation(.spring(duration: 0.25)) {
                                 switch step {
                                 case .services: step = .choose
@@ -48,22 +48,9 @@ struct QuickLogView: View {
                                 default: break
                                 }
                             }
-                        } label: {
-                            HStack(spacing: 4) {
-                                Image(systemName: "arrow.left")
-                                    .font(.system(size: 14))
-                                Text("Back")
-                                    .font(.quicksandScaled(.medium, size: 14))
-                            }
-                            .foregroundStyle(Color.agMutedForeground)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(Color.agMuted.opacity(0.5))
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
                         }
-                        .buttonStyle(.plain)
                     } else {
-                        Spacer().frame(width: 56)
+                        Spacer().frame(width: 44)
                     }
 
                     Spacer()
@@ -321,7 +308,7 @@ struct QuickLogView: View {
             if !selectedServices.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("SELECTED (\(selectedServices.count))")
-                        .font(.quicksandScaled(.semibold, size: 10))
+                        .font(.quicksandScaled(.semibold, size: 11))
                         .foregroundStyle(Color.agMutedForeground)
                         .tracking(0.5)
 
@@ -431,7 +418,7 @@ struct QuickLogView: View {
             // Selected services reminder
             VStack(alignment: .leading, spacing: 6) {
                 Text("SERVICES")
-                    .font(.quicksandScaled(.semibold, size: 10))
+                    .font(.quicksandScaled(.semibold, size: 11))
                     .foregroundStyle(Color.agMutedForeground)
                     .tracking(0.5)
                 Text(selectedServices.joined(separator: ", "))
@@ -474,7 +461,7 @@ struct QuickLogView: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     Text("SERVICE DETAILS")
-                        .font(.quicksandScaled(.bold, size: 10))
+                        .font(.quicksandScaled(.bold, size: 11))
                         .foregroundStyle(Color.agMutedForeground)
                         .tracking(0.5)
                     Spacer()
@@ -598,7 +585,7 @@ struct QuickLogView: View {
     func detailField(label: String, @ViewBuilder content: () -> some View) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(label)
-                .font(.quicksandScaled(.semibold, size: 10))
+                .font(.quicksandScaled(.semibold, size: 11))
                 .foregroundStyle(Color.agMutedForeground)
                 .tracking(0.5)
             content()

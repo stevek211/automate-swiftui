@@ -106,17 +106,7 @@ struct ServicePlanView: View {
 
             // Back button pinned to the left
             HStack {
-                Button { dismiss() } label: {
-                    ZStack {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(ServicePlanPalette.textPrimary)
-                    }
-                    .frame(width: 32, height: 32)
-                    .background(ServicePlanPalette.neutralChipBg)
-                    .clipShape(Circle())
-                }
-                .buttonStyle(.plain)
+                BackButton()
 
                 Spacer()
             }
@@ -182,7 +172,7 @@ struct ServicePlanView: View {
 
                 if let next = nextMilestone {
                     Text("Next milestone at \(next.mileage.formatted()) mi")
-                        .font(.quicksand(.regular, size: 10))
+                        .font(.quicksand(.regular, size: 11))
                         .foregroundStyle(ServicePlanPalette.textSecondary)
                         .frame(height: 13.75)
                 }
@@ -217,7 +207,7 @@ struct ServicePlanView: View {
         } label: {
             HStack(spacing: 8) {
                 Text("PREVIOUSLY RECORDED SERVICES")
-                    .font(.quicksand(.medium, size: 9))
+                    .font(.quicksand(.medium, size: 11))
                     .tracking(1.80)
                     .foregroundStyle(ServicePlanPalette.textMuted)
 
@@ -225,7 +215,7 @@ struct ServicePlanView: View {
                 Spacer()
 
                 Text("\(displayedServiceLogCount) service\(displayedServiceLogCount == 1 ? "" : "s")")
-                    .font(.quicksand(.medium, size: 10))
+                    .font(.quicksand(.medium, size: 11))
                     .foregroundStyle(ServicePlanPalette.textMuted)
 
                 Image(systemName: "chevron.down")
@@ -335,7 +325,7 @@ struct ServicePlanView: View {
                             .foregroundStyle(ServicePlanPalette.teal)
                         Spacer()
                         Text("\(plan.milesUntilNext.formatted()) mi away")
-                            .font(.quicksand(.regular, size: 10))
+                            .font(.quicksand(.regular, size: 11))
                             .foregroundStyle(ServicePlanPalette.textMuted)
                     }
                     .frame(maxWidth: .infinity)
@@ -374,7 +364,7 @@ struct ServicePlanView: View {
                         HStack(spacing: 8) {
                             ForEach(milestone.replacements) { item in
                                 Text(item.name)
-                                    .font(.quicksand(.regular, size: 10))
+                                    .font(.quicksand(.regular, size: 11))
                                     .foregroundStyle(ServicePlanPalette.teal)
                                     .padding(.horizontal, 14)
                                     .padding(.vertical, 7)
@@ -496,7 +486,7 @@ struct ServicePlanView: View {
                         .frame(height: 15.12)
 
                     Text(completedSecondaryText(completed))
-                        .font(.quicksand(.regular, size: 10))
+                        .font(.quicksand(.regular, size: 11))
                         .foregroundStyle(ServicePlanPalette.textMuted)
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(height: 13.74)
@@ -579,9 +569,9 @@ struct ServicePlanView: View {
                     Spacer()
 
                     Text(showCompletedItems ? "Hide" : "Show")
-                        .font(.quicksand(.medium, size: 10))
+                        .font(.quicksand(.medium, size: 11))
                         .foregroundStyle(ServicePlanPalette.textMuted)
-                        .frame(width: 28, height: 15, alignment: .trailing)
+                        .frame(width: 32, height: 15, alignment: .trailing)
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 8)

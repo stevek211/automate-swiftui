@@ -23,21 +23,8 @@ struct ServiceAlertListSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     // Vehicle back-link
-                    if let vehicle {
-                        Button { dismiss() } label: {
-                            HStack(spacing: 4) {
-                                Image(systemName: "arrow.left")
-                                    .font(.system(size: 12, weight: .medium))
-                                Text(vehicle.fullDisplayName)
-                                    .font(.quicksandScaled(.medium, size: 13))
-                            }
-                            .foregroundStyle(Color.agMutedForeground)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(Color.agMuted)
-                            .clipShape(Capsule())
-                        }
-                        .buttonStyle(.plain)
+                    if vehicle != nil {
+                        BackButton()
                     }
 
                     // ── Needs Attention (Overdue) ──────────────────

@@ -91,15 +91,7 @@ struct VehicleDetailView: View {
 
     private var topBar: some View {
         HStack {
-            circleButton(label: "Back") {
-                dismiss()
-            } icon: {
-                Image("vehicle-icon-chevron")
-                    .renderingMode(.template)
-                    .foregroundStyle(Color.vdInk)
-                    .frame(width: 16, height: 16)
-                    .rotationEffect(.degrees(180))
-            }
+            BackButton()
 
             Spacer()
 
@@ -124,12 +116,12 @@ struct VehicleDetailView: View {
     ) -> some View {
         Button(action: action) {
             icon()
-                .frame(width: 32, height: 32)
-                .background(.ultraThinMaterial, in: Circle())
-                .background(Color.vdSurface.opacity(0.8), in: Circle())
-                .overlay(Circle().strokeBorder(Color.vdBorder.opacity(0.5), lineWidth: 1))
+                .frame(width: 44, height: 44)
+                .contentShape(Circle())
         }
         .buttonStyle(.plain)
+        // Same glass circle as BackButton, which sits opposite it.
+        .glassEffect(.regular.interactive(), in: .circle)
         .accessibilityLabel(label)
     }
 

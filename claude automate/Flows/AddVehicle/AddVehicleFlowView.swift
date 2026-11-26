@@ -454,7 +454,7 @@ struct AddVehicleFlowView: View {
         HStack(spacing: 12) {
             Rectangle().fill(Color.agBorder).frame(height: 1)
             Text("Driving Profile")
-                .font(Font.custom("Quicksand", size: 10))
+                .font(Font.custom("Quicksand", size: 11))
                 .tracking(0.5)
                 .foregroundStyle(Color.agMutedForeground)
             Rectangle().fill(Color.agBorder).frame(height: 1)

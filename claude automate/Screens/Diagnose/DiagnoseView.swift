@@ -47,7 +47,7 @@ struct DiagnoseCategoryCard: View {
 
                 if isComingSoon {
                     Text("Coming soon")
-                        .font(.quicksandScaled(.medium, size: 10))
+                        .font(.quicksandScaled(.medium, size: 11))
                         .foregroundStyle(Color.agMutedForeground)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 2)
@@ -88,5 +88,6 @@ struct ComingSoonView: View {
         .appBackground()
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
+        .standardBackButton()
     }
 }

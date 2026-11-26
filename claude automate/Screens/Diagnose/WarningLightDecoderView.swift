@@ -59,6 +59,7 @@ struct WarningLightDecoderView: View {
         .appBackground()
         .navigationTitle("Warning Lights")
         .navigationBarTitleDisplayMode(.inline)
+        .standardBackButton()
         .searchable(text: $searchText, prompt: "Search warning lights")
         .sheet(item: $selectedLight) { light in
             DiagnosticLightDetailView(light: light)

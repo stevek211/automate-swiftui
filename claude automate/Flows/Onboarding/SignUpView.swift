@@ -118,17 +118,8 @@ struct SignUpView: View {
             }
         }
         .background(Color.theme.card.ignoresSafeArea())
-        .navigationBarBackButtonHidden(true)
         .toolbarBackground(.hidden, for: .navigationBar)
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button(action: onBack) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundStyle(Color.theme.ink)
-                }
-            }
-        }
+        .standardBackButton(action: onBack)
         .navigationDestination(isPresented: $showEmailForm) {
             EmailFormView(
                 isLoginMode: emailFormIsLogin,
@@ -444,16 +435,9 @@ struct EmailFormView: View {
             }
             }
         }
-        .navigationBarBackButtonHidden(true)
         .toolbarBackground(.hidden, for: .navigationBar)
+        .standardBackButton()
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button(action: { dismiss() }) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundStyle(Color.theme.ink)
-                }
-            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     withAnimation(.easeInOut(duration: 0.2)) {
@@ -729,17 +713,8 @@ struct ForgotPasswordView: View {
         .padding(.horizontal, 24)
         .padding(.top, 16)
         .background(Color.white.ignoresSafeArea())
-        .navigationBarBackButtonHidden(true)
         .toolbarBackground(.hidden, for: .navigationBar)
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button(action: { dismiss() }) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundStyle(Color.theme.ink)
-                }
-            }
-        }
+        .standardBackButton()
         .navigationDestination(isPresented: $showCheckEmail) {
             CheckYourEmailView(email: email)
         }

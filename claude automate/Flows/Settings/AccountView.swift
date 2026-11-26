@@ -73,15 +73,7 @@ struct AccountView: View {
                 .accessibilityAddTraits(.isHeader)
 
             HStack {
-                Button { dismiss() } label: {
-                    Image("settings-icon-back")
-                        .renderingMode(.template)
-                        .foregroundStyle(ink)
-                        .frame(width: 44, height: 44)
-                        .contentShape(Circle())
-                }
-                .buttonStyle(ScaleButtonStyle())
-                .accessibilityLabel("Back")
+                BackButton()
                 Spacer()
             }
         }
